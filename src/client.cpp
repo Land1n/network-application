@@ -8,7 +8,7 @@ void chat_client(const std::string& server_ip) {
     try {
         boost::asio::io_context io_context;
         tcp::socket socket(io_context);
-        socket.connect(tcp::endpoint(boost::asio::ip::make_address(server_ip), 12345));
+        socket.connect(tcp::endpoint(boost::asio::ip::make_address(server_ip), 88888));
 
         std::cout << "Connected to server at " << server_ip << std::endl;
 
@@ -25,11 +25,8 @@ void chat_client(const std::string& server_ip) {
 
             // Read server response
             std::memset(data, 0, sizeof(data));
-            size_t length = socket.read_some(boost::asio::buffer(data), error);
             if (error == boost::asio::error::eof) break;
             else if (error) throw boost::system::system_error(error);
-
-            std::cout << "Server: " << data << std::endl;
         }
     } catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << std::endl;
@@ -38,9 +35,6 @@ void chat_client(const std::string& server_ip) {
 
 int main() {
     std::string server_ip;
-    std::cout << "Enter server IP: ";
-    std::cin >> server_ip;
-    std::cin.ignore(); // Ignore leftover newline from std::cin
-    chat_client(server_ip);
+    chat_client("127.0.0.1");
     return 0;
 }
