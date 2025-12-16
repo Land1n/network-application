@@ -1,9 +1,18 @@
-cmake_minimum_required(VERSION 3.10)
-project(server)                
-find_package(Boost REQUIRED)
+cmake_minimum_required(VERSION 3.16)
+project(ChatSystem VERSION 1.0.0 LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(server src/main.cpp src/server.cpp src/client_session.cpp)
-add_executable(client src/client.cpp)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-target_include_directories(server PRIVATE src/include)
+find_package(Boost 1.66 REQUIRED COMPONENTS system)
+
+add_subdirectory(src)
+
+install(TARGETS chat_server chat_client
+        RUNTIME DESTINATION bin
+        )
+
+#enable_testing()

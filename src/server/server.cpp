@@ -32,8 +32,7 @@ void Server::start()
 
 
 
-//void Server::sendData(ClientSession session&, std::vector<char> message)
-//
-//	boost::system::error_code error;
-//	boost::asio::write(session.socket, boost::asio::buffer(message),error);
-//}
+void Server::sendData(ClientSession session&, std::vector<char> message)
+	boost::system::error_code error;
+	boost::asio::write(session.socket, boost::asio::buffer(message),error);
+}
