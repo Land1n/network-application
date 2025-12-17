@@ -22,5 +22,6 @@ public:
 	void start();
 	void stop();
 	Server(std::string address, int port);	
-	//void sendData(ClientSession,std::vector<char>);
+    	std::string getAddress() const { return address; }
+    	int getPort() const { return port; }	
 };
