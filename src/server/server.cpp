@@ -15,9 +15,9 @@ void Server::start()
 		        std::vector<std::thread> threads;
         
         	for (int i = 0; i < 3; ++i) {
-            		client_session.emplace_back(this->io_context, acceptor);
+            		server_session.emplace_back(this->io_context, acceptor);
        			threads.emplace_back([this, i]() {
-                		client_session[i].startSession();
+                		server_session[i].startSession();
             		});
         	}
         

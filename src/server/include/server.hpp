@@ -5,7 +5,7 @@
 
 #include <vector>
 
-#include <client_session.hpp>
+#include <server_session.hpp>
 
 using boost::asio::ip::tcp;
 
@@ -16,7 +16,7 @@ private:
 	int port;
 	boost::asio::io_context io_context;
 
-	std::vector<ClientSession> client_session;
+	std::vector<ServerSession> server_session;
 
 public:
 	void start();

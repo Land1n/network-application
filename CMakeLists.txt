@@ -11,7 +11,7 @@ find_package(Boost 1.66 REQUIRED COMPONENTS system json)
 
 add_subdirectory(src)
 
-install(TARGETS chat_server chat_client
+install(TARGETS server client
         RUNTIME DESTINATION bin
         )
 

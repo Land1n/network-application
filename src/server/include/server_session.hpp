@@ -6,11 +6,11 @@
 
 using boost::asio::ip::tcp;
 
-class ClientSession
+class ServerSession
 {
 public:
 	
-	ClientSession(boost::asio::io_context &io_context,tcp::acceptor &acceptor);	
+	ServerSession(boost::asio::io_context &io_context,tcp::acceptor &acceptor);	
 	void startSession();
 	void processingCommand(const char* data, std::function<void(const std::string&,const std::string&)> callback);
 	void sendData(const std::string& command, const std::string& data);

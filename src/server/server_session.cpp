@@ -1,9 +1,9 @@
-#include <client_session.hpp>
+#include <server_session.hpp>
 #include <boost/json.hpp>
 
 namespace json = boost::json;
 
-ClientSession::ClientSession(boost::asio::io_context &io_context, tcp::acceptor &acceptor) : socket(io_context)
+ServerSession::ServerSession(boost::asio::io_context &io_context, tcp::acceptor &acceptor) : socket(io_context)
 {
         try{
                 acceptor.accept(this->socket);
@@ -17,7 +17,7 @@ ClientSession::ClientSession(boost::asio::io_context &io_context, tcp::acceptor 
 
 }
 
-void ClientSession::sendData(const std::string& command, const std::string& data)
+void ServerSession::sendData(const std::string& command, const std::string& data)
 {
 
         json::object response;
@@ -27,7 +27,7 @@ void ClientSession::sendData(const std::string& command, const std::string& data
         boost::asio::write(socket, boost::asio::buffer(response_str));
 }
 
-void ClientSession::processingCommand(const char* data, std::function<void(const std::string&,const std::string&)> callback)
+void ServerSession::processingCommand(const char* data, std::function<void(const std::string&,const std::string&)> callback)
 {
         json::value request_json = json::parse(data);
         std::string command = request_json.as_object()["command"].as_string().c_str();
@@ -43,7 +43,7 @@ void ClientSession::processingCommand(const char* data, std::function<void(const
 
 }
 
-void ClientSession::startSession()
+void ServerSession::startSession()
 {
 	try{
 		
