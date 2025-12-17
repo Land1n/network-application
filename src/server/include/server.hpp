@@ -21,7 +21,6 @@ private:
 public:
 	void start();
 	void stop();
-	Server(std::string,int);
-	void viewMessage();
+	Server(std::string address, int port);	
 	//void sendData(ClientSession,std::vector<char>);
 };

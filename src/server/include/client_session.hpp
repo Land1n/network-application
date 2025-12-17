@@ -10,8 +10,10 @@ class ClientSession
 {
 public:
 	
-	ClientSession(boost::asio::io_context &,tcp::acceptor &);	
+	ClientSession(boost::asio::io_context &io_context,tcp::acceptor &acceptor);	
 	void startSession();
+	void processingCommand(const char* data, std::function<void(const std::string&,const std::string&)> callback);
+	void sendData(const std::string& command, const std::string& data);
 private:
 	int port;
 	std::string address;
