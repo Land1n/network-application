@@ -3,6 +3,8 @@
 #include <iostream>
 #include <boost/asio.hpp>
 
+#include <../core/include/request_response_handler.hpp>
+
 
 using boost::asio::ip::tcp;
 
@@ -19,5 +21,8 @@ private:
 	std::string address;
 	char data[1024];
 	tcp::socket socket;
+
+	RequestResponseHandler rrh;
+ 
 };
 

@@ -1,6 +1,9 @@
 #include <server_session.hpp>
 #include <boost/json.hpp>
 
+#include <../core/include/request_response_handler.hpp> 
+
+
 namespace json = boost::json;
 
 ServerSession::ServerSession(boost::asio::io_context &io_context, tcp::acceptor &acceptor) : socket(io_context)
@@ -62,9 +65,12 @@ void ServerSession::startSession()
             		else if (error) 
 				throw boost::system::system_error(error);
 			
-			this->processingCommand(this->data,[this](const std::string& command, const std::string& data){
-                		this->sendData(command, data);
-            		});
+			MessageData md = this->rrh.processingCommand(data);
+			std::string response = this->rrh.serializeData(md);
+			boost::asio::write(socket, boost::asio::buffer(response));	
+		//	this->processingCommand(this->data,[this](const std::string& command, const std::string& data){
+                //		this->sendData(command, data);
+            	//	});
 
 		}
 	} catch (std::exception &e){

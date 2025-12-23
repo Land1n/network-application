@@ -3,6 +3,8 @@
 #include <iostream>
 #include <thread>
 
+#include <../core/include/request_response_handler.hpp>
+
 using boost::asio::ip::tcp;
 
 namespace json = boost::json;
@@ -16,17 +18,15 @@ void chat_client(const std::string& server_ip) {
         std::cout << "Connected to server at " << server_ip << std::endl;
 
         char data[1024];
+	std::vector<int> vec = {0};
         while (true) {
+
+	    boost::system::error_code error;
             std::string command;
             std::cout << "Enter command : ";
-	    std::cin >> command;
-
-	    json::object request;
-	    request["command"] = command;
-
-            boost::system::error_code error;
-            
-	    std::string request_str = json::serialize(request);
+	    std::cin >> command;	
+	    RequestResponseHandler rrh;
+	    std::string request_str = rrh.serializeData(MessageData(command,vec));
 	    boost::asio::write(socket, boost::asio::buffer(request_str), error);
 
             if (error) throw boost::system::system_error(error);
@@ -39,12 +39,15 @@ void chat_client(const std::string& server_ip) {
 	    
 	    size_t l = socket.read_some(boost::asio::buffer(data),error);
 	    
-	    json::value response_json = json::parse(data);
-	    std::cout << "Server: " << response_json.as_object()["data"].as_string().c_str() << std::endl;
+	    MessageData md = rrh.parseData(data);
+	    if (md.command == "pong")
+		    ++vec[0];
+	    std::string response = rrh.serializeData(md);
+	    std::cout << "Server: " << response << std::endl;
 	
 	}
     } catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        std::cerr << "Exception: "<< "\n" << e.what() << std::endl;
     }
 }
 

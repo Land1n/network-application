@@ -15,4 +15,4 @@ install(TARGETS server client
         RUNTIME DESTINATION bin
         )
 
-enable_testing()
+#enable_testing()
