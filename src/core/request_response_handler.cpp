@@ -5,7 +5,7 @@ MessageData::MessageData(std::string command, std::vector<int> data) : command(c
 
 MessageData RequestResponseHandler::parseData(const char* data) {
 	json::value request_json = json::parse(data);	
-	std::cout << request_json << std::endl;
+//	std::cout << request_json << std::endl;
 	std::string command = request_json.at("command").as_string().c_str();
 	auto& json_array = request_json.at("data").as_array(); 
 	std::vector<int> parse_data;	
