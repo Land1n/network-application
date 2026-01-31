@@ -3,23 +3,21 @@
 Простой клиент-серверный чат-система, использующая Boost.Asio для сетевого взаимодействия и Boost.JSON для сериализации данных.
 
 ## Структура проекта
-project/
-├── client/ # Клиентская часть
-│ └── client.cpp # Основной файл клиента
-├── server/ # Серверная часть
-│ ├── server.hpp/cpp # Основной класс сервера
-│ ├── server_session.hpp/cpp # Обработка клиентских сессий
-│ └── main.cpp # Точка входа сервера
-├── core/ # Общая логика
-│ ├── include/
-│ │ └── request_response_handler.hpp
-│ └── request_response_handler.cpp # Обработка JSON сообщений
-├── tests/ # Тесты
-│ ├── test_server.cpp
-│ └── test_request_response_handler.cpp
-└── CMakeLists.txt # Корневой CMake файл
-
-text
+> project/
+> ├── client/ # Клиентская часть
+> │ └── client.cpp # Основной файл клиента
+> ├── server/ # Серверная часть
+> │ ├── server.hpp/cpp # Основной класс сервера
+> │ ├── server_session.hpp/cpp # Обработка клиентских сессий
+> │ └── main.cpp # Точка входа сервера
+> ├── core/ # Общая логика
+> │ ├── include/
+> │ │ └── request_response_handler.hpp
+> │ └── request_response_handler.cpp # Обработка JSON сообщений
+> ├── tests/ # Тесты
+> │ ├── test_server.cpp
+> │ └── test_request_response_handler.cpp
+> └── CMakeLists.txt # Корневой CMake файл
 
 ## Основные файлы
 
