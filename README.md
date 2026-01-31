@@ -3,6 +3,7 @@
 Простой клиент-серверный чат-система, использующая Boost.Asio для сетевого взаимодействия и Boost.JSON для сериализации данных.
 
 ## Структура проекта
+```
    project/
    ├── client/ # Клиентская часть
    │ └── client.cpp # Основной файл клиента
@@ -11,14 +12,14 @@
    │ ├── server_session.hpp/cpp # Обработка клиентских сессий
    │ └── main.cpp # Точка входа сервера
    ├── core/ # Общая логика
-   │ ├── include/
+   │ ├── include/ 
    │ │ └── request_response_handler.hpp
    │ └── request_response_handler.cpp # Обработка JSON сообщений
    ├── tests/ # Тесты
    │ ├── test_server.cpp
    │ └── test_request_response_handler.cpp
    └── CMakeLists.txt # Корневой CMake файл
-
+```
 ## Основные файлы
 
 ### Клиент (`client/client.cpp`)
@@ -43,13 +44,15 @@
 Сервер обрабатывает следующие команды, отправляемые в поле `command` JSON-сообщения:
 
 1. **`ping`** - тестовая команда, сервер отвечает `pong` с увеличенным счетчиком
-   ```json
+   ```json  
    {"command": "ping", "data": [5]} → {"command": "pong", "data": [6]}
-getData - запрос данных, сервер отвечает sendData с нулевыми данными
-
-json
+   ```
+2. **`getDatag`** - запрос данных, сервер отвечает sendData с нулевыми данными
+```json 
 {"command": "getData", "data": [100]} → {"command": "sendData", "data": [0]}
-Любая другая команда возвращает ошибку:
+```
+3. Любая другая команда возвращает ошибку:
 
-json
+```json
 {"command": "unknown", "data": [...]} → {"command": "error", "data": [-1]}
+```
