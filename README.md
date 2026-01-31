@@ -3,21 +3,29 @@
 Простой клиент-серверный чат-система, использующая Boost.Asio для сетевого взаимодействия и Boost.JSON для сериализации данных.
 
 ```bash
-project/
-├── client/                    # Клиентская часть
-│   ├── client.cpp            # Основной файл клиента
-│   └── server/               # Серверная часть
-│       ├── server.hppcpp     # Основной класс сервера
-│       ├── server_session.hppcpp # Обработка клиентских сессий
-│       └── main.cpp          # Точка входа сервера
-├── core/                     # Общая логика
-│   ├── include/
-│   │   ├── request_response_handler.hpp
-│   │   └── request_response_handler.cpp # Обработка JSON сообщений
-│   └── tests/                # Тесты
-│       ├── test_server.cpp
-│       └── test_request_response_handler.cpp
-└── CMakeLists.txt           # Корневой CMake файл
+src/
+├── client/                                         # Клиентская часть
+│ ├── client.cpp                                       # Основной файл клиента
+│ └── CMakeLists.txt
+├── server/                                         # Серверная часть
+│ ├── include/
+│ │ ├── server.hpp                                        # Основной класс сервера
+│ │ └── server_session.hpp                                # Класс сессии клиента
+│ ├── main.cpp                                         # Точка входа сервера
+│ ├── server.cpp                                       # Реализация сервера
+│ ├── server_session.cpp                               # Реализация сессии
+│ └── CMakeLists.txt
+├── core/                                           # Общая библиотека
+│ ├── include/
+│ │ └── request_response_handler.hpp
+│ ├── request_response_handler.cpp
+│ └── CMakeLists.txt
+├── tests/                                          # Тесты
+│ ├── test_request_response_handler.cpp
+│ ├── test_server.cpp
+│ └── CMakeLists.txt
+├── CMakeLists.txt                                  # Корневой CMake
+└── test.cpp                                        # Тестовый файл для JSON
 ```
 ## Основные файлы
 
