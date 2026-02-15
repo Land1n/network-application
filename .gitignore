@@ -1,3 +1,7 @@
-build.sh
+.vscode/
 build/
+build.sh
+client
+server_app
+testClient.cpp
 .gitignore
