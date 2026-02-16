@@ -1,5 +1,4 @@
 #include "connection_handler.hpp"
-#include "thread_pool.hpp"
 
 using boost::asio::ip::tcp;
 

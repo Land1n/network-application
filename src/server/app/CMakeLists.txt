@@ -15,7 +15,8 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
     ThreadPool   
-    ConnectionHandler       
+    ConnectionHandler  
+    RequestResponseHandler     
     Boost::system
 )
 
