@@ -10,10 +10,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(Boost REQUIRED COMPONENTS system thread)
 
-
 add_subdirectory(src/core/lib/ThreadPool)
 add_subdirectory(src/server/lib/ConnectionHandler)
-add_subdirectory(src/server/app)    
+add_subdirectory(src/server/app)
+
+add_executable(ChatSystem main.cpp)
+
+target_link_libraries(ChatSystem PUBLIC
+    ThreadPool   
+    ConnectionHandler
+    Server                 
+    Boost::system
+)
+
+target_include_directories(ChatSystem PRIVATE src/server/app/include)
 
 install(TARGETS ConnectionHandler 
         RUNTIME DESTINATION bin

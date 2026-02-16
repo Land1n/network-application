@@ -1,9 +1,22 @@
-project(server_app)
+cmake_minimum_required(VERSION 3.21)
 
-add_executable(server_app main.cpp)
+project(Server)
 
-target_link_libraries(server_app PRIVATE ConnectionHandler ThreadPool)
-target_include_directories(server_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+find_package(Boost REQUIRED COMPONENTS system)
+
+file(GLOB SOURCES "include/*.h" "source/*.cpp")
 
 
-install(TARGETS server_app RUNTIME DESTINATION bin)
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    ThreadPool   
+    ConnectionHandler       
+    Boost::system
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC include)
