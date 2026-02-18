@@ -3,7 +3,10 @@
 #include <iostream>
 
 #include <boost/asio.hpp>
+#include <vector>
 #include <atomic>
+
+#include "signal_data_packet.hpp" 
 
 using boost::asio::ip::tcp;
 
@@ -14,13 +17,13 @@ public:
         : is_working(is_working), socket(socket)
     {}
     void processingData();
-
-    void searchData();
+    bool searchData(uint32_t magic_patern);
+    SignalDataPacket parseData();
     void serializeData();
     void sendData();
     std::string getIp();
 private:
-    char data[4096];
+    std::vector<char> data;
     std::shared_ptr<std::atomic<bool>> is_working;
     std::shared_ptr<tcp::socket> socket;
 };

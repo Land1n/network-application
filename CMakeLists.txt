@@ -11,6 +11,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 find_package(Boost REQUIRED COMPONENTS system thread)
 
 add_subdirectory(src/core/lib/ThreadPool)
+add_subdirectory(src/core/lib/DataPacket)
 add_subdirectory(src/server/lib/ConnectionHandler)
 add_subdirectory(src/server/lib/RequestResponseHandler)
 add_subdirectory(src/server/app)
