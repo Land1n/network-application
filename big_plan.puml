@@ -1,0 +1,49 @@
+@startuml
+
+component client
+component Message as Message1
+component Message as Message2
+component TransportMessage as TransportMessage1
+component TransportMessage as TransportMessage2
+component TransportMessage as TransportMessage3
+component server
+component TaskProcessSignal as TaskProcessSignal
+component Info
+component result
+component MessageResponse
+
+
+package TransportMessage {
+  [Magic_pattern] as mp
+  [json_size] as js_s
+  [json] as js
+}
+
+mp -- js_s
+js_s -- js
+
+package Message {
+    [IMessage] as im
+    [Signal] as s
+    [Info] as f
+}
+
+
+im --> s
+im --> f
+client -> Message1
+Message1 -> TransportMessage1 : MessageHandler.serializeData()
+TransportMessage1 -> server :RequestResponseHandler.readData()
+server --> TransportMessage2 : MessageHandler.searchData()
+TransportMessage2 --> Message2 : MessageHandler.parseData()
+Message2 --> TaskProcessSignal
+Message2 --> Info
+TaskProcessSignal ..> result : как-то получаем result
+result --> MessageResponse
+Info --> MessageResponse
+MessageResponse ---> TransportMessage3 : DataHandler.serializeData()
+TransportMessage3 -> client : RequestResponseHandler.sendData()
+
+
+
+@enduml

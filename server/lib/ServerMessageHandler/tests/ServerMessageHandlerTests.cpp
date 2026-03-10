@@ -1,0 +1,120 @@
+//
+// Created by ivan on 10.03.2026.
+//
+
+#include "ServerMessageHandler.hpp"
+#include "SignalMessage.hpp"
+#include "InformationMessage.hpp"
+
+#include "gtest/gtest.h"
+
+GTEST_TEST(ServerMessageHandlerTests,ValidParseSignal) {
+    ServerMessageHandler handler;
+    std::string json_str = R"({
+        "type": "signal",
+        "central_Freq": 6100,
+        "signal": [[-8.865925598144531E1, -6.549491882324219E1]]
+    })";
+    std::vector<uint8_t> payload(json_str.begin(), json_str.end());
+    std::string type = "signal";
+    TransportMessage transport_message(type, payload);
+    std::unique_ptr<Message> message = handler.parse(transport_message);
+
+    ASSERT_NE(message, nullptr);
+    // Динамическое приведение к конкретному типу для проверки
+    auto* signalMsg = dynamic_cast<SignalMessage*>(message.get());
+    ASSERT_NE(signalMsg, nullptr);
+    EXPECT_EQ(signalMsg->getCentralFreq(), 6100);
+    EXPECT_EQ(signalMsg->getSignal().size(), 1);
+}
+
+TEST(ServerMessageHandlerTests, ValidParseInformation) {
+    ServerMessageHandler handler;
+    std::string json_str = R"({ "numberCore": 4 })";
+    std::vector<uint8_t> payload(json_str.begin(), json_str.end());
+    std::string type = "information";
+    TransportMessage transport_message(type, payload);
+
+    auto message = handler.parse(transport_message);
+    ASSERT_NE(message, nullptr);
+
+    auto* infoMsg = dynamic_cast<InformationMessage*>(message.get());
+    ASSERT_NE(infoMsg, nullptr);
+    EXPECT_EQ(infoMsg->getNumberCore(), 4);
+}
+
+
+TEST(ServerMessageHandlerTests, ParseUnsupportedTypeReturnsNull) {
+    ServerMessageHandler handler;
+    std::string json_str = R"({"some":"data"})";
+    std::vector<uint8_t> payload(json_str.begin(), json_str.end());
+    std::string type = "unsupported";
+    TransportMessage transport_message(type, payload);
+
+    auto message = handler.parse(transport_message);
+    EXPECT_EQ(message, nullptr);
+}
+
+TEST(ServerMessageHandlerTests, ParseInvalidJsonReturnsNull) {
+    ServerMessageHandler handler;
+    std::string json_str = R"({ malformed )";
+    std::vector<uint8_t> payload(json_str.begin(), json_str.end());
+    std::string type = "signal";
+    TransportMessage transport_message(type, payload);
+
+    auto message = handler.parse(transport_message);
+    EXPECT_EQ(message, nullptr);
+}
+
+TEST(ServerMessageHandlerTests, SerializeValidSignal) {
+    ServerMessageHandler handler;
+    std::vector<std::complex<float>> signal = {{-88.65925598144531f, -65.49491882324219f}};
+    auto message = std::make_unique<SignalMessage>("signal", 6100, signal);
+
+    TransportMessage transport = handler.serialize(std::move(message));
+    EXPECT_EQ(transport.type, "signal");
+    EXPECT_FALSE(transport.payload.empty());
+
+    // Проверим, что результат можно снова распарсить
+    auto parsed = handler.parse(transport);
+    ASSERT_NE(parsed, nullptr);
+    auto* signalParsed = dynamic_cast<SignalMessage*>(parsed.get());
+    ASSERT_NE(signalParsed, nullptr);
+    EXPECT_EQ(signalParsed->getCentralFreq(), 6100);
+    EXPECT_EQ(signalParsed->getSignal().size(), 1);
+}
+TEST(ServerMessageHandlerTests, SerializeValidInformation) {
+    ServerMessageHandler handler;
+    auto message = std::make_unique<InformationMessage>("information", 8);
+
+    TransportMessage transport = handler.serialize(std::move(message));
+    EXPECT_EQ(transport.type, "information");
+    EXPECT_FALSE(transport.payload.empty());
+
+    auto parsed = handler.parse(transport);
+    ASSERT_NE(parsed, nullptr);
+    auto* infoParsed = dynamic_cast<InformationMessage*>(parsed.get());
+    ASSERT_NE(infoParsed, nullptr);
+    EXPECT_EQ(infoParsed->getNumberCore(), 8);
+}
+
+TEST(ServerMessageHandlerTests, SerializeNullMessageReturnsEmpty) {
+    ServerMessageHandler handler;
+    TransportMessage transport = handler.serialize(nullptr);
+    EXPECT_TRUE(transport.payload.empty());
+    EXPECT_TRUE(transport.type.empty());  // так как мы вернули TransportMessage()
+}
+
+TEST(ServerMessageHandlerTests, SerializeUnsupportedTypeReturnsOnlyType) {
+    ServerMessageHandler handler;
+    // Создаём тестовое сообщение неизвестного типа
+    class UnknownMessage : public Message {
+    public:
+        UnknownMessage() : Message("unknown") {}
+    };
+    auto message = std::make_unique<UnknownMessage>();
+
+    TransportMessage transport = handler.serialize(std::move(message));
+    EXPECT_EQ(transport.type, "unknown");
+    EXPECT_TRUE(transport.payload.empty());
+}

@@ -1,30 +1,41 @@
-cmake_minimum_required(VERSION 3.21)
-
-project(server_app VERSION 1.0.0 LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.14)
+project(server_client_app LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON) 
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+add_subdirectory(core/lib/ConnectionHandler)
+add_subdirectory(core/lib/TransportHandler)
+add_subdirectory(core/lib/MessageHandler)
+add_subdirectory(core/lib/RequestResponseHandler)
+add_subdirectory(core/lib/ThreadPool)
+add_subdirectory(server)
 
-find_package(Boost REQUIRED COMPONENTS system thread)
+find_package(GTest REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system thread json)
 
-add_subdirectory(src/core/lib/ThreadPool)
-add_subdirectory(src/core/lib/DataPacket)
-add_subdirectory(src/server/lib/ConnectionHandler)
-add_subdirectory(src/server/lib/RequestResponseHandler)
-add_subdirectory(src/server/app)
+file(GLOB_RECURSE TEST_SOURCES "core/lib/*/tests/*.cpp" "server/lib/*/tests/*.cpp")
 
-add_executable(server_app main.cpp)
 
-target_link_libraries(server_app PUBLIC
-    Server                 
-    Boost::system
+add_executable(all_tests ${TEST_SOURCES})
+
+file(GLOB_RECURSE INCLUDE_DIRS "core/lib/*Handler/include" "server/lib/*Handler/include")
+target_include_directories(all_tests PRIVATE ${INCLUDE_DIRS})
+
+target_link_libraries(all_tests PRIVATE
+        GTest::gtest
+        GTest::gtest_main
+        Boost::system
+        Boost::thread
+        Boost::json
+        ConnectionHandler
+        TransportHandler
+        MessageHandler
+        ThreadPool
+        ServerMessageHandler
+        ServerRequestResponseHandler
+        ServerMessage
 )
 
-target_include_directories(server_app PRIVATE src/server/app/include)
-
-install(TARGETS ConnectionHandler 
-        RUNTIME DESTINATION bin
-        )
+enable_testing()
+add_test(NAME AllTests COMMAND all_tests)

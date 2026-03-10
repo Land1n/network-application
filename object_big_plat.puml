@@ -1,0 +1,61 @@
+@startuml
+
+package Client {
+    package ConnectionHandler as ConnectionHandler1 {
+        [Client_Socket] as Socket1
+    }
+    package TransportHandler as TransportHandler1 {
+        [TransportMessage] as TransportMessage1
+    }
+    package MessageHandler as MessageHandler1 {
+        [RequestMessage] as RequestMessage_MessageHandler_Client
+        [ResponseMessage] as ResponseMessage_MessageHandler_Client
+    }
+}
+
+package Server {
+
+    package RequestResponseHandler as RequestResponseHandler1 {
+
+        package MessageHandler as MessageHandler2 {
+            [RequestMessage] as RequestMessage_MessageHandler_Server
+            [ResponseMessage] as ResponseMessage_MessageHandler_Server
+        }
+        [Signal]
+        [Info]
+        [...]
+    }
+     package ConnectionHandler as ConnectionHandler2 {
+         [Client_Socket] as Socket2
+         [Acceptor] as Acceptor
+     }
+    package TransportHandler as TransportHandler2 {
+        [TransportMessage] as TransportMessage2
+    }
+
+
+}
+
+RequestMessage_MessageHandler_Client -->TransportMessage1 : MessageHandler.serialize()
+
+TransportMessage1 ---> TransportMessage2 : TransportHandler.send()
+TransportMessage2 --> RequestMessage_MessageHandler_Server : MessageHandler.parse()
+
+
+RequestMessage_MessageHandler_Server -> [Signal]
+RequestMessage_MessageHandler_Server -> [Info]
+RequestMessage_MessageHandler_Server -> [...]
+[Signal] =-> ResponseMessage_MessageHandler_Server
+[Info] -=> ResponseMessage_MessageHandler_Server
+[...] -=> ResponseMessage_MessageHandler_Server
+ResponseMessage_MessageHandler_Server =-> TransportMessage2:  MessageHandler.serialize()
+
+TransportMessage2 ==> TransportMessage1 : TransportHandler.read()
+TransportMessage1 => ResponseMessage_MessageHandler_Client : MessageHandler.parse()
+
+Socket1 <.> Socket2
+
+Socket2 -> [Acceptor] : boost::tcp::accept
+Socket2 --.-> TransportHandler2 : std::move(Socket)
+
+@enduml

@@ -1,7 +1,4 @@
 .vscode/
+cmake-build-debug/
 build/
-build.sh
-client
-server_app
-testClient.cpp
 .gitignore
