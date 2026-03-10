@@ -1,4 +1,7 @@
-.vscode/
-cmake-build-debug/
+build.sh
 build/
+.idea/
 .gitignore
+test.cpp
+test
+
