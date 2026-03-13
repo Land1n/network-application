@@ -10,6 +10,8 @@
 
 class ServerMessageHandler : public IMessageHandler {
 public:
+    ServerMessageHandler();
+
     std::unique_ptr<Message> parse(const TransportMessage &transport_message) override;
     TransportMessage serialize(std::unique_ptr<Message> message) override;
 };

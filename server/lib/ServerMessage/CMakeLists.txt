@@ -10,13 +10,12 @@ find_package(Boost REQUIRED COMPONENTS system json)
 
 file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES}
-        source/CreateMessage.cpp
-        include/CreateMessage.hpp)
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
         Boost::json
+        Message
         MessageHandler
 )
 

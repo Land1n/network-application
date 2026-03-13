@@ -33,3 +33,10 @@ int SignalMessage::getCentralFreq() {
 std::vector<std::complex<float>> SignalMessage::getSignal() {
     return _signal;
 }
+
+void SignalMessage::setTransactionType() {
+    if (_signal.empty())
+        this->transactionType = TransactionType::Request;
+    else
+        this->transactionType = TransactionType::Response;
+}

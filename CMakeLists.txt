@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(core/lib/ConnectionHandler)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/MessageHandler)
+add_subdirectory(core/lib/Message)
 add_subdirectory(core/lib/RequestResponseHandler)
 add_subdirectory(core/lib/ThreadPool)
 add_subdirectory(server)
@@ -19,7 +20,7 @@ file(GLOB_RECURSE TEST_SOURCES "core/lib/*/tests/*.cpp" "server/lib/*/tests/*.cp
 
 add_executable(all_tests ${TEST_SOURCES})
 
-file(GLOB_RECURSE INCLUDE_DIRS "core/lib/*Handler/include" "server/lib/*Handler/include")
+file(GLOB_RECURSE INCLUDE_DIRS "core/lib/*/include" "server/lib/*/include")
 target_include_directories(all_tests PRIVATE ${INCLUDE_DIRS})
 
 target_link_libraries(all_tests PRIVATE
@@ -32,6 +33,7 @@ target_link_libraries(all_tests PRIVATE
         TransportHandler
         MessageHandler
         ThreadPool
+        Message
         ServerMessageHandler
         ServerRequestResponseHandler
         ServerMessage

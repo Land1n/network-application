@@ -2,13 +2,17 @@
 // Created by ivan on 09.03.2026.
 //
 
+#include <string>
+
 #include "Server.hpp"
+
+#include <iostream>
+
 #include "ThreadPool.hpp"
 #include "ConnectionHandler.hpp"
-
-#include "../include/Server.hpp"
-
-#include <string>
+#include "TransportHandler.hpp"
+#include "ServerMessageHandler.hpp"
+#include "ServerRequestResponseHandler.hpp"
 
 
 std::string Server::getAddress() {
@@ -45,9 +49,24 @@ void Server::start() {
             continue;
         }
 
-        // auto request_response_handler = std::make_shared<RequestResponseHandler>(is_working, socket);
-        // pool.enqueue([request_response_handler]() {
-            // request_response_handler->processingData();
-        // });
+        pool.enqueue([this, socket]() {
+            while (this->is_working->load()) {
+                TransportHandler transport_handler(socket);
+                ServerMessageHandler message_handler;
+                ServerRequestResponseHandler request_response_handler(message_handler.creator_message);
+
+                TransportMessage transport_message = transport_handler.read();
+                auto message = message_handler.parse(transport_message);
+                std::cout << "message->type: " << message->type << std::endl;
+                std::cout << "message->transactionType: " << static_cast<int>(message->transactionType) << std::endl;
+                auto new_message = request_response_handler.processingRequestResponse(std::move(message));
+                TransportMessage new_transport_message = message_handler.serialize(std::move(new_message));
+                if (transport_handler.send(new_transport_message))
+                    std::cout << "Message sent successfully" << std::endl;
+                else
+                    std::cout << "Message not sent" << std::endl;
+
+            }
+        });
     }
 }

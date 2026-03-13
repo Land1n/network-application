@@ -13,9 +13,13 @@
 #include "SignalMessage.hpp"
 #include "InformationMessage.hpp"
 
-#include "CreateMessage.hpp"
 
 namespace json = boost::json;
+
+ServerMessageHandler::ServerMessageHandler() {
+    creator_message->addMessageOnMap("signal",[](const std::string& t, json::value& v) { return std::make_unique<SignalMessage>(t, v); });
+    creator_message->addMessageOnMap("information",[](const std::string& t, json::value& v) { return std::make_unique<InformationMessage>(t, v); });
+}
 
 std::unique_ptr<Message> ServerMessageHandler::parse(const TransportMessage &transport_message) {
 
@@ -27,8 +31,10 @@ std::unique_ptr<Message> ServerMessageHandler::parse(const TransportMessage &tra
     }catch (std::exception& e) {
         return nullptr;
     }
-
-    return createMessage(transport_message.type,jv);
+    auto message = creator_message->createMessage(transport_message.type,jv);
+    if (message != nullptr)
+        message->setTransactionType();
+    return message;
 }
 
 TransportMessage ServerMessageHandler::serialize(std::unique_ptr<Message> message) {

@@ -14,3 +14,10 @@ int InformationMessage::getNumberCore() const {
 InformationMessage::InformationMessage(const std::string& type,json::value &jv) : Message(type) {
     this->_numberCore = jv.at("numberCore").as_int64();
 }
+
+void InformationMessage::setTransactionType() {
+    if (_numberCore == 0)
+        this->transactionType = TransactionType::Request;
+    else
+        this->transactionType = TransactionType::Response;
+}

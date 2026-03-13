@@ -14,6 +14,9 @@ class InformationMessage : public Message {
 public:
     InformationMessage(const std::string &type, int numberCore);
     InformationMessage(const std::string &type, json::value &jv);
+
+    void setTransactionType() override;
+
     int getNumberCore() const;
 private:
     int _numberCore;

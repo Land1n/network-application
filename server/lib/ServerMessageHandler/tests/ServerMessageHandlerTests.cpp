@@ -102,12 +102,11 @@ TEST(ServerMessageHandlerTests, SerializeNullMessageReturnsEmpty) {
     ServerMessageHandler handler;
     TransportMessage transport = handler.serialize(nullptr);
     EXPECT_TRUE(transport.payload.empty());
-    EXPECT_TRUE(transport.type.empty());  // так как мы вернули TransportMessage()
+    EXPECT_TRUE(transport.type.empty());
 }
 
 TEST(ServerMessageHandlerTests, SerializeUnsupportedTypeReturnsOnlyType) {
     ServerMessageHandler handler;
-    // Создаём тестовое сообщение неизвестного типа
     class UnknownMessage : public Message {
     public:
         UnknownMessage() : Message("unknown") {}

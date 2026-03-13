@@ -19,6 +19,7 @@ public:
     SignalMessage(const std::string &type,json::value &jv);
     int getCentralFreq();
     std::vector<std::complex<float>> getSignal();
+    void setTransactionType() override;
 private:
     int _central_Freq;
     std::vector<std::complex<float>> _signal;
