@@ -2,7 +2,7 @@
 // Created by ivan on 10.03.2026.
 //
 
-#include "InformationMessage.hpp"
+#include "../include/InformationMessage.hpp"
 
 InformationMessage::InformationMessage(const std::string& type, int numberCore)
     : Message(type), _numberCore(numberCore) {}

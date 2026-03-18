@@ -7,10 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(core/lib/ConnectionHandler)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/MessageHandler)
-add_subdirectory(core/lib/Message)
 add_subdirectory(core/lib/RequestResponseHandler)
 add_subdirectory(core/lib/ThreadPool)
 add_subdirectory(server)
+add_subdirectory(client)
 
 find_package(GTest REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread json)
@@ -33,10 +33,7 @@ target_link_libraries(all_tests PRIVATE
         TransportHandler
         MessageHandler
         ThreadPool
-        Message
-        ServerMessageHandler
         ServerRequestResponseHandler
-        ServerMessage
 )
 
 enable_testing()

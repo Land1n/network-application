@@ -4,7 +4,5 @@
 #include "Message.hpp"
 
 void Message::setTransactionType() {
-    // Provide a sensible default: mark as Request.
-    // (The derived classes override this to decide based on their state.)
     transactionType = TransactionType::Request;
 }

@@ -1,6 +1,6 @@
 find_package(GTest REQUIRED)
 
-project(ServerMessageHandlerTests)
+project(ServerRequestResponseHandlerTests)
 
 file(GLOB SOURCES "*.cpp")
 
@@ -11,8 +11,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         GTest::gtest_main
         Boost::system
         Boost::json
-        ServerMessageHandler
-        ServerMessage
+        ServerRequestResponseHandler
 )
 
 enable_testing()

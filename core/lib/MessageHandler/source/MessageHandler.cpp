@@ -1,27 +1,22 @@
 //
 // Created by ivan on 10.03.2026.
 //
-#include "ServerMessageHandler.hpp"
-
-#include <iostream>
 #include <memory>
 #include <boost/json.hpp>
 
-#include "TransportMessage.hpp"
-
-#include "Message.hpp"
+#include "MessageHandler.hpp"
 #include "SignalMessage.hpp"
 #include "InformationMessage.hpp"
 
 
 namespace json = boost::json;
 
-ServerMessageHandler::ServerMessageHandler() {
+MessageHandler::MessageHandler() {
     creator_message->addMessageOnMap("signal",[](const std::string& t, json::value& v) { return std::make_unique<SignalMessage>(t, v); });
     creator_message->addMessageOnMap("information",[](const std::string& t, json::value& v) { return std::make_unique<InformationMessage>(t, v); });
 }
 
-std::unique_ptr<Message> ServerMessageHandler::parse(const TransportMessage &transport_message) {
+std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport_message) {
 
     std::string_view sv(reinterpret_cast<const char*>(transport_message.payload.data()),
                            transport_message.payload.size());
@@ -37,7 +32,7 @@ std::unique_ptr<Message> ServerMessageHandler::parse(const TransportMessage &tra
     return message;
 }
 
-TransportMessage ServerMessageHandler::serialize(std::unique_ptr<Message> message) {
+TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
     if (!message) {
         return TransportMessage();
     }

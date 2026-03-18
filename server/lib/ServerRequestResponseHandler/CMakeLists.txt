@@ -17,8 +17,6 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::json
         RequestResponseHandler
         MessageHandler
-        Message
-        ServerMessage
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

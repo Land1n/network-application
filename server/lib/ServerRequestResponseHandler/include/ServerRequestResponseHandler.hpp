@@ -5,7 +5,6 @@
 #pragma once
 
 #include "RequestResponseHandler.hpp"
-#include "Message.hpp"
 #include "CreatorMessage.hpp"
 
 class ServerRequestResponseHandler : public IRequestResponseHandler {

@@ -7,7 +7,7 @@
 #include <vector>
 
 struct TransportMessage {
-    TransportMessage() {} ;
+    TransportMessage() {};
     TransportMessage(std::string &type, std::vector<uint8_t> payload) : type(type), payload(payload) {};
     std::string type;
     std::vector<uint8_t> payload;

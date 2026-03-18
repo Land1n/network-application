@@ -11,7 +11,7 @@
 #include "ThreadPool.hpp"
 #include "ConnectionHandler.hpp"
 #include "TransportHandler.hpp"
-#include "ServerMessageHandler.hpp"
+#include "MessageHandler.hpp"
 #include "ServerRequestResponseHandler.hpp"
 
 
@@ -37,12 +37,13 @@ void Server::start() {
 
      is_working->store(true);
 
+    std::cout << "Server started" << std::endl;
     ConnectionHandler connection_handler(address,port,io_context);
 
     auto acceptor = connection_handler.listen(is_working);
     if (acceptor == nullptr)
         stop();
-
+    std::cout << "Acceptor started" << std::endl;
     while (is_working->load()) {
         auto socket = connection_handler.accept(acceptor);
         if (!socket) {
@@ -51,11 +52,13 @@ void Server::start() {
 
         pool.enqueue([this, socket]() {
             while (this->is_working->load()) {
+                std::cout << "Connection accepted" << std::endl;
                 TransportHandler transport_handler(socket);
-                ServerMessageHandler message_handler;
+                MessageHandler message_handler;
                 ServerRequestResponseHandler request_response_handler(message_handler.creator_message);
 
                 TransportMessage transport_message = transport_handler.read();
+                std::cout << "Message received" << std::endl;
                 auto message = message_handler.parse(transport_message);
                 std::cout << "message->type: " << message->type << std::endl;
                 std::cout << "message->transactionType: " << static_cast<int>(message->transactionType) << std::endl;

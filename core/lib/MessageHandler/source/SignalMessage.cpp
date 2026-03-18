@@ -2,7 +2,7 @@
 // Created by ivan on 10.03.2026.
 //
 
-#include "SignalMessage.hpp"
+#include "../include/SignalMessage.hpp"
 
 #include <string>
 

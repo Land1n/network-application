@@ -5,13 +5,16 @@ project(MessageHandler)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system json)
 
-add_library(${PROJECT_NAME} INTERFACE)
+file(GLOB SOURCES "source/*.cpp")
 
-target_include_directories(${PROJECT_NAME} INTERFACE include)
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-target_link_libraries(${PROJECT_NAME} INTERFACE
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
+        Boost::json
         TransportHandler
 )

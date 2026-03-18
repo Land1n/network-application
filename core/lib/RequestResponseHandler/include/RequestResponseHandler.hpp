@@ -5,7 +5,7 @@
 #pragma once
 #include <memory>
 
-#include "Message.hpp"
+#include "../../MessageHandler/include/Message.hpp"
 #include "CreatorMessage.hpp"
 
 class IRequestResponseHandler {

@@ -2,14 +2,14 @@
 // Created by ivan on 10.03.2026.
 //
 
-#include "ServerMessageHandler.hpp"
+#include "MessageHandler.hpp"
 #include "SignalMessage.hpp"
 #include "InformationMessage.hpp"
 
 #include "gtest/gtest.h"
 
-GTEST_TEST(ServerMessageHandlerTests,ValidParseSignal) {
-    ServerMessageHandler handler;
+GTEST_TEST(MessageHandlerTests,ValidParseSignal) {
+    MessageHandler handler;
     std::string json_str = R"({
         "type": "signal",
         "central_Freq": 6100,
@@ -28,8 +28,8 @@ GTEST_TEST(ServerMessageHandlerTests,ValidParseSignal) {
     EXPECT_EQ(signalMsg->getSignal().size(), 1);
 }
 
-TEST(ServerMessageHandlerTests, ValidParseInformation) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, ValidParseInformation) {
+    MessageHandler handler;
     std::string json_str = R"({ "numberCore": 4 })";
     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
     std::string type = "information";
@@ -44,8 +44,8 @@ TEST(ServerMessageHandlerTests, ValidParseInformation) {
 }
 
 
-TEST(ServerMessageHandlerTests, ParseUnsupportedTypeReturnsNull) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, ParseUnsupportedTypeReturnsNull) {
+    MessageHandler handler;
     std::string json_str = R"({"some":"data"})";
     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
     std::string type = "unsupported";
@@ -55,8 +55,8 @@ TEST(ServerMessageHandlerTests, ParseUnsupportedTypeReturnsNull) {
     EXPECT_EQ(message, nullptr);
 }
 
-TEST(ServerMessageHandlerTests, ParseInvalidJsonReturnsNull) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, ParseInvalidJsonReturnsNull) {
+    MessageHandler handler;
     std::string json_str = R"({ malformed )";
     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
     std::string type = "signal";
@@ -66,8 +66,8 @@ TEST(ServerMessageHandlerTests, ParseInvalidJsonReturnsNull) {
     EXPECT_EQ(message, nullptr);
 }
 
-TEST(ServerMessageHandlerTests, SerializeValidSignal) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, SerializeValidSignal) {
+    MessageHandler handler;
     std::vector<std::complex<float>> signal = {{-88.65925598144531f, -65.49491882324219f}};
     auto message = std::make_unique<SignalMessage>("signal", 6100, signal);
 
@@ -83,8 +83,8 @@ TEST(ServerMessageHandlerTests, SerializeValidSignal) {
     EXPECT_EQ(signalParsed->getCentralFreq(), 6100);
     EXPECT_EQ(signalParsed->getSignal().size(), 1);
 }
-TEST(ServerMessageHandlerTests, SerializeValidInformation) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, SerializeValidInformation) {
+    MessageHandler handler;
     auto message = std::make_unique<InformationMessage>("information", 8);
 
     TransportMessage transport = handler.serialize(std::move(message));
@@ -98,15 +98,15 @@ TEST(ServerMessageHandlerTests, SerializeValidInformation) {
     EXPECT_EQ(infoParsed->getNumberCore(), 8);
 }
 
-TEST(ServerMessageHandlerTests, SerializeNullMessageReturnsEmpty) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, SerializeNullMessageReturnsEmpty) {
+    MessageHandler handler;
     TransportMessage transport = handler.serialize(nullptr);
     EXPECT_TRUE(transport.payload.empty());
     EXPECT_TRUE(transport.type.empty());
 }
 
-TEST(ServerMessageHandlerTests, SerializeUnsupportedTypeReturnsOnlyType) {
-    ServerMessageHandler handler;
+TEST(MessageHandlerTests, SerializeUnsupportedTypeReturnsOnlyType) {
+    MessageHandler handler;
     class UnknownMessage : public Message {
     public:
         UnknownMessage() : Message("unknown") {}

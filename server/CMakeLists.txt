@@ -16,25 +16,17 @@ target_include_directories(ServerCore PUBLIC include)
 target_link_libraries(ServerCore PUBLIC
         Boost::system
         ConnectionHandler
-        Message
         MessageHandler
         RequestResponseHandler
         TransportHandler
         ThreadPool
-        ServerMessageHandler
         ServerRequestResponseHandler
-        ServerMessage
 )
 
-add_subdirectory(lib/ServerMessageHandler)
 add_subdirectory(lib/ServerRequestResponseHandler)
-add_subdirectory(lib/ServerMessage)
 
 add_executable(server_app main.cpp)
 
 target_link_libraries(server_app PRIVATE
         ServerCore
-        ServerMessageHandler
-        ServerRequestResponseHandler
-        ServerMessage
 )

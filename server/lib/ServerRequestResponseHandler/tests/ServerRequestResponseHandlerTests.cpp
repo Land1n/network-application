@@ -6,11 +6,9 @@
 
 #include "gtest/gtest.h"
 
-#include "ServerRequestResponseHandler.hpp"
 #include "SignalMessage.hpp"
 #include "InformationMessage.hpp"
 
-#include "gtest/gtest.h"
 #include <memory>
 #include <complex>
 #include <vector>
@@ -62,7 +60,6 @@ GTEST_TEST(ServerRequestResponseHandlerTests, InformationRequest_ReturnsInformat
 
 GTEST_TEST(ServerRequestResponseHandlerTests, UnknownRequestType_ReturnsNullptr) {
     auto creator = std::make_shared<CreatorMessage>();
-    // No factory registered for "unknown"
     ServerRequestResponseHandler handler(creator);
 
     auto request = std::make_unique<Message>("unknown");
