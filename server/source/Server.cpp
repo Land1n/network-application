@@ -41,34 +41,36 @@ void Server::start() {
     ConnectionHandler connection_handler(address,port,io_context);
 
     auto acceptor = connection_handler.listen(is_working);
-    if (acceptor == nullptr)
+    if (acceptor == nullptr) {
         stop();
-    std::cout << "Acceptor started" << std::endl;
+        std::cout << "Acceptor stopped" << std::endl;
+    } else
+        std::cout << "Acceptor started" << std::endl;
     while (is_working->load()) {
         auto socket = connection_handler.accept(acceptor);
         if (!socket) {
+            std::cout << "Connection socket failed" << std::endl;
             continue;
+        } else {
+            std::cout << "Connection accepted"  << std::endl;
         }
 
         pool.enqueue([this, socket]() {
-            while (this->is_working->load()) {
-                std::cout << "Connection accepted" << std::endl;
+            if (this->is_working->load()) {
                 TransportHandler transport_handler(socket);
                 MessageHandler message_handler;
                 ServerRequestResponseHandler request_response_handler(message_handler.creator_message);
 
                 TransportMessage transport_message = transport_handler.read();
-                std::cout << "Message received" << std::endl;
                 auto message = message_handler.parse(transport_message);
-                std::cout << "message->type: " << message->type << std::endl;
-                std::cout << "message->transactionType: " << static_cast<int>(message->transactionType) << std::endl;
+                std::cout << "request_message->type: " << message->type << std::endl;
+                std::cout << "request_message->transactionType: " << static_cast<int>(message->transactionType) << std::endl;
                 auto new_message = request_response_handler.processingRequestResponse(std::move(message));
                 TransportMessage new_transport_message = message_handler.serialize(std::move(new_message));
                 if (transport_handler.send(new_transport_message))
-                    std::cout << "Message sent successfully" << std::endl;
+                    std::cout << "Send response TransportMessage" << std::endl;
                 else
-                    std::cout << "Message not sent" << std::endl;
-
+                    std::cout << "TransportMessage not sent" << std::endl;
             }
         });
     }

@@ -3,6 +3,9 @@
 //
 
 #include "TransportHandler.hpp"
+#include <boost/json.hpp>
+
+namespace json = boost::json;
 
 TransportMessage TransportHandler::read() {
     TransportMessage message;
@@ -24,6 +27,13 @@ TransportMessage TransportHandler::read() {
     boost::asio::read(*socket, boost::asio::buffer(message.payload), error);
     if (error) {
         message.payload.clear();
+    }
+    try{
+        std::string_view json(reinterpret_cast<const char*>(message.payload.data()),message.payload.size());
+        json::value json_val = json::parse(json);
+        message.type = json_val.at("type").as_string();
+    }   catch (std::exception &e) {
+        message.type = "error";
     }
     return message;
 }

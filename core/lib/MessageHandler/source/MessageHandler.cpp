@@ -37,6 +37,7 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
         return TransportMessage();
     }
     json::object payload;
+    payload["type"] = message->type;
     if (message->type == "signal") {
         auto* signal_message = dynamic_cast<SignalMessage*>(message.get());
 
