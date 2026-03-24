@@ -12,6 +12,8 @@ add_subdirectory(core/lib/ThreadPool)
 add_subdirectory(server)
 add_subdirectory(client)
 
+add_subdirectory(logger-ifaces)
+
 find_package(GTest REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread json)
 

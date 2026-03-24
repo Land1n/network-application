@@ -21,6 +21,7 @@ target_link_libraries(ServerCore PUBLIC
         TransportHandler
         ThreadPool
         ServerRequestResponseHandler
+        sdrlogger
 )
 
 add_subdirectory(lib/ServerRequestResponseHandler)
