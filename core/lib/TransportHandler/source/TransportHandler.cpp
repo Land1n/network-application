@@ -7,35 +7,49 @@
 
 namespace json = boost::json;
 
+TransportHandler::TransportHandler(std::shared_ptr<tcp::socket> socket, const uint32_t magicNumber,bool DEBUG)
+    : socket(std::move(socket)), magicNumber(magicNumber) {
+    logger.init5Levels();
+    if (!DEBUG)
+        logger.setLogLevel("ERROR");
+    else
+        logger.setLogLevel("DEBUG");
+}
+
+
 TransportMessage TransportHandler::read() {
-    TransportMessage message;
+    TransportMessage transport_message;
     boost::system::error_code error;
 
     uint32_t magic = 0;
 
     while (magic != magicNumber) {
         boost::asio::read(*socket, boost::asio::buffer(&magic, 4), error);
-        if (error) return message;
+        if (error) return transport_message;
     }
 
     uint32_t json_len;
     boost::asio::read(*socket, boost::asio::buffer(&json_len, 4), error);
-    if (error) return message;
+    if (error) return transport_message;
 
-    message.payload.resize(json_len);
+    transport_message.payload.resize(json_len);
 
-    boost::asio::read(*socket, boost::asio::buffer(message.payload), error);
+    boost::asio::read(*socket, boost::asio::buffer(transport_message.payload), error);
     if (error) {
-        message.payload.clear();
+        transport_message.payload.clear();
     }
     try{
-        std::string_view json(reinterpret_cast<const char*>(message.payload.data()),message.payload.size());
+        std::string_view json(reinterpret_cast<const char*>(transport_message.payload.data()),transport_message.payload.size());
         json::value json_val = json::parse(json);
-        message.type = json_val.at("type").as_string();
+        transport_message.type = json_val.at("type").as_string();
+        logger("DEBUG") << "TransportHandler : Read request TransportMessage" << "\n";
+
     }   catch (std::exception &e) {
-        message.type = "error";
+        transport_message.type = "error";
+        logger("WARN") << "TransportHandler : Read request TransportMessage" << "\n";
     }
-    return message;
+    logger("DEBUG") << "TransportHandler : Request TransportMessage.type:" << transport_message.type << "\n";
+    return transport_message;
 }
 
 bool TransportHandler::send(TransportMessage &message) {
@@ -47,5 +61,9 @@ bool TransportHandler::send(TransportMessage &message) {
 
     boost::system::error_code error;
     boost::asio::write(*socket, buffers, error);
+    if (!error)
+        logger("DEBUG") << "TransportHandler : Send response TransportMessage" << "\n";
+    else
+        logger("WARN") << "TransportHandler : Send response TransportMessage" << "\n";
     return !error;
 }

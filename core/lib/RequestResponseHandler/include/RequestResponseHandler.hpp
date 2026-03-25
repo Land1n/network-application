@@ -5,13 +5,23 @@
 #pragma once
 #include <memory>
 
-#include "../../MessageHandler/include/Message.hpp"
+#include "Message.hpp"
+
 #include "CreatorMessage.hpp"
+
+#include "sdrlogger/sdrlogger.h"
 
 class IRequestResponseHandler {
 public:
-    IRequestResponseHandler(std::shared_ptr<CreatorMessage> creator_message) : creator_message(creator_message) {}
+    IRequestResponseHandler(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG = false) : creator_message(creator_message) {
+        logger.init5Levels();
+        if (!DEBUG)
+            logger.setLogLevel("ERROR");
+        else
+            logger.setLogLevel("DEBUG");
+    }
     virtual ~IRequestResponseHandler() = default;
     virtual std::unique_ptr<Message> processingRequestResponse(std::unique_ptr<Message>) = 0;
     std::shared_ptr<CreatorMessage> creator_message;
+    BaseLogger& logger = BaseLogger::get();
 };

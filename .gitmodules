@@ -1,0 +1,4 @@
+[submodule "logger-ifaces"]
+    path = logger-ifaces
+    url = https://github.com/Matejzjanova/logger-ifaces
+    branch = master

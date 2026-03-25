@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Client)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost REQUIRED COMPONENTS system)
@@ -20,6 +20,7 @@ target_link_libraries(ClientCore PUBLIC
 #        RequestResponseHandler
         TransportHandler
         ThreadPool
+        sdrlogger
 )
 
 add_executable(client_app main.cpp)

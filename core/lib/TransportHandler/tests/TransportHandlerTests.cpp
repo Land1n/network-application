@@ -18,8 +18,8 @@ GTEST_TEST(TransportHandlerTest, SendAndReadOnSocketTest) {
     std::string address = "127.0.0.1";
     int port = 1234;
 
-    ConnectionHandler server_handler(address, port, io_context_server);
-    ConnectionHandler client_handler(address, port, io_context_client);
+    ConnectionHandler server_handler(address, port, io_context_server,true);
+    ConnectionHandler client_handler(address, port, io_context_client,true);
 
     auto acceptor = server_handler.listen(is_working);
     ASSERT_NE(acceptor, nullptr);
