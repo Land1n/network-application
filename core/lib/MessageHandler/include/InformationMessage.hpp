@@ -12,10 +12,8 @@ namespace json = boost::json;
 
 class InformationMessage : public Message {
 public:
-    InformationMessage(const std::string &type, int numberCore);
-    InformationMessage(const std::string &type, json::value &jv);
-
-    void setTransactionType() override;
+    InformationMessage(const std::string &type,Transaction transaction, int numberCore);
+    InformationMessage(const std::string &type,Transaction transaction, json::value &jv);
 
     int getNumberCore() const;
 private:

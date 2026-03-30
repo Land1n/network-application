@@ -12,13 +12,11 @@
 namespace json = boost::json;
 
 MessageHandler::MessageHandler(bool DEBUG) {
-    creator_message->addMessageOnMap("signal",[](const std::string& t, json::value& v) { return std::make_unique<SignalMessage>(t, v); });
-    creator_message->addMessageOnMap("information",[](const std::string& t, json::value& v) { return std::make_unique<InformationMessage>(t, v); });
+    // creator_message->addMessageOnMap("signal",[](const std::string& t, json::value& v) { return std::make_unique<SignalMessage>(t, v); });
+    // creator_message->addMessageOnMap("information",[](const std::string& t, json::value& v) { return std::make_unique<InformationMessage>(t, v); });
     logger.init5Levels();
     if (!DEBUG)
         logger.setLogLevel("ERROR");
-    else
-        logger.setLogLevel("DEBUG");
 
 }
 
@@ -36,9 +34,6 @@ std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport
     }
     auto message = creator_message->createMessage(transport_message.type,jv);
     logger("DEBUG") << "MessageHandler : Create Message" << "\n";
-    if (message != nullptr) {
-        message->setTransactionType();
-    }
     return message;
 }
 
@@ -53,7 +48,7 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
         logger("DEBUG") << "MessageHandler : Serialize Message" << "\n";
         auto* signal_message = dynamic_cast<SignalMessage*>(message.get());
 
-        if (!signal_message) return TransportMessage(message->type, {});
+        if (!signal_message) return TransportMessage(message->type, message->transaction,{});
 
         payload["central_Freq"] = signal_message->getCentralFreq();
         json::array signal;
@@ -65,15 +60,15 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
     } else if (message->type == "information") {
         logger("DEBUG") << "MessageHandler : Serialize Message" << "\n";
         auto* information_message = dynamic_cast<InformationMessage*>(message.get());
-        if (!information_message) return TransportMessage(message->type, {});
+        if (!information_message) return TransportMessage(message->type, message->transaction,{});
 
         payload["numberCore"] = information_message->getNumberCore();
     } else {
         logger("WARN") << "MessageHandler : Serialize Message" << "\n";
-        return TransportMessage(message->type, {});
+        return TransportMessage(message->type, message->transaction,{});
     }
     std::string json_str = json::serialize(payload);
     std::vector<uint8_t> bytes(json_str.begin(),json_str.end());
-    TransportMessage transport_message(message->type,bytes);
+    TransportMessage transport_message(message->type,message->transaction,bytes);
     return transport_message;
 }

@@ -11,6 +11,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         GTest::gtest_main
         Boost::system
         ConnectionHandler
+        ThreadPool
 )
 
 enable_testing()

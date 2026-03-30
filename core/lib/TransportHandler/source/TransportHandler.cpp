@@ -3,6 +3,7 @@
 //
 
 #include "TransportHandler.hpp"
+
 #include <boost/json.hpp>
 
 namespace json = boost::json;
@@ -42,10 +43,12 @@ TransportMessage TransportHandler::read() {
         std::string_view json(reinterpret_cast<const char*>(transport_message.payload.data()),transport_message.payload.size());
         json::value json_val = json::parse(json);
         transport_message.type = json_val.at("type").as_string();
+        transport_message.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
         logger("DEBUG") << "TransportHandler : Read request TransportMessage" << "\n";
 
-    }   catch (std::exception &e) {
-        transport_message.type = "error";
+    }  catch (std::exception &e) {
+        transport_message.type = "";
+        transport_message.transaction = Transaction::Error;
         logger("WARN") << "TransportHandler : Read request TransportMessage" << "\n";
     }
     logger("DEBUG") << "TransportHandler : Request TransportMessage.type:" << transport_message.type << "\n";

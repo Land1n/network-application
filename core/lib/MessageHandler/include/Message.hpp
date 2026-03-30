@@ -4,16 +4,13 @@
 #pragma once
 #include <string>
 
-enum class TransactionType {
-    Request = 0,
-    Response = 1
-};
+#include "Transaction.hpp"
 
 class  Message {
 public:
     std::string type;
-    TransactionType transactionType;
-    Message(std::string type) : type(type) {}
+    Transaction transaction;
+    Message(std::string type) : type(type),transaction(Transaction::Tests) {}
+    Message(std::string type,Transaction transaction) : type(type),transaction(transaction) {}
     virtual ~Message() = default;
-    virtual void setTransactionType();
 };

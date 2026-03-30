@@ -4,6 +4,11 @@ project(server_client_app LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(GTest REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system thread json)
+
+set(PARENT_PROJECT ON)
+
 add_subdirectory(core/lib/ConnectionHandler)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/MessageHandler)
@@ -13,9 +18,6 @@ add_subdirectory(server)
 add_subdirectory(client)
 
 add_subdirectory(logger-ifaces)
-
-find_package(GTest REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread json)
 
 file(GLOB_RECURSE TEST_SOURCES "core/lib/*/tests/*.cpp" "server/lib/*/tests/*.cpp")
 

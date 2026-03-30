@@ -10,7 +10,8 @@ find_package(Boost REQUIRED COMPONENTS system json)
 
 file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+add_library(${PROJECT_NAME} SHARED ${SOURCES}
+        source/Transaction.cpp)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
