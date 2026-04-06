@@ -4,13 +4,16 @@
 
 #include "InformationMessage.hpp"
 
-InformationMessage::InformationMessage(const std::string& type,Transaction transaction, int numberCore)
-    : Message(type,transaction), _numberCore(numberCore) {}
+InformationMessage::InformationMessage(const std::string &type, Transaction transaction, int numberCore)
+    : Message(type, transaction), _numberCore(numberCore) {
+}
 
 int InformationMessage::getNumberCore() const {
     return _numberCore;
 }
 
-InformationMessage::InformationMessage(const std::string& type,Transaction transaction,json::value &jv) : Message(type,transaction) {
-    this->_numberCore = jv.at("numberCore").as_int64();
+InformationMessage::InformationMessage(const std::string &type, Transaction transaction, json::value &jv) : Message(
+    type, transaction) {
+    if (transaction == Transaction::Response)
+        this->_numberCore = jv.at("numberCore").as_int64();
 }

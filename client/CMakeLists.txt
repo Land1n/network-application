@@ -17,9 +17,8 @@ target_link_libraries(ClientCore PUBLIC
         Boost::system
         ConnectionHandler
         MessageHandler
-#        RequestResponseHandler
+        RequestResponseHandler
         TransportHandler
-        ThreadPool
         sdrlogger
 )
 

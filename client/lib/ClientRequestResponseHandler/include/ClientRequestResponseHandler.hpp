@@ -1,15 +1,11 @@
-//
-// Created by ivan on 10.03.2026.
-//
-
 #pragma once
 
 #include "RequestResponseHandler.hpp"
 #include "CreatorMessage.hpp"
 
-class ServerRequestResponseHandler : public RequestResponseHandlerBase {
+class ClientRequestResponseHandler : public RequestResponseHandlerBase {
 public:
-    explicit ServerRequestResponseHandler(std::shared_ptr<CreatorMessage> creator_message)
+    explicit ClientRequestResponseHandler(std::shared_ptr<CreatorMessage> creator_message)
         : RequestResponseHandlerBase(creator_message) {
     }
 

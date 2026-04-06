@@ -19,7 +19,6 @@ target_link_libraries(ServerCore PUBLIC
         MessageHandler
         RequestResponseHandler
         TransportHandler
-        ThreadPool
         ServerRequestResponseHandler
         sdrlogger
 )

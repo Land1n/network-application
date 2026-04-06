@@ -4,29 +4,32 @@
 
 #include "CreatorMessage.hpp"
 
+#include <iostream>
 #include <utility>
 
 
-std::unique_ptr<Message> CreatorMessage::createMessage(std::string type,json::value &json_value) {
-
+std::unique_ptr<Message> CreatorMessage::createMessage(const std::string& type, Transaction transaction, json::value &json_value) {
     auto it = factory.find(type);
-    if (it != factory.end()) {
-        return it->second(type,json_value);
+    try {
+        if (it != factory.end()) {
+            return it->second(type, transaction, json_value);
+        }
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
     }
     return nullptr;
 }
 
-bool CreatorMessage::addMessageOnMap(std::string type,std::function<std::unique_ptr<Message>(const std::string&, json::value&)> function) {
+bool CreatorMessage::addMessageOnMap(const std::string& type,
+                                     std::function<std::unique_ptr<Message>(const std::string&, Transaction, json::value&)> function) {
     try {
         factory[type] = std::move(function);
-        if (factory.at(type))
-            return true;
-        return  false;
-    } catch (std::exception &e) {
+        return true;
+    } catch (...) {
         return false;
     }
 }
 
-CreatorMessage::CreatorMessage(std::unordered_map<std::string, std::function<std::unique_ptr<Message>(const std::string &, json::value &)> > factory)
+CreatorMessage::CreatorMessage(std::unordered_map<std::string, std::function<std::unique_ptr<Message>(const std::string&, Transaction, json::value&)>> factory)
     : factory(std::move(factory))
 {}

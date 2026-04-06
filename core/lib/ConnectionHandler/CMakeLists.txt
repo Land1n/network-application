@@ -17,7 +17,6 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
         sdrlogger
-        ThreadPool
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

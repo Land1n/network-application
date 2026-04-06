@@ -47,7 +47,7 @@ TransportMessage TransportHandler::read() {
         logger("DEBUG") << "TransportHandler : Read request TransportMessage" << "\n";
 
     }  catch (std::exception &e) {
-        transport_message.type = "";
+        transport_message.type = "error";
         transport_message.transaction = Transaction::Error;
         logger("WARN") << "TransportHandler : Read request TransportMessage" << "\n";
     }

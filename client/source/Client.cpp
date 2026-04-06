@@ -11,87 +11,61 @@
 
 #include "SignalMessage.hpp"
 #include "InformationMessage.hpp"
+#include "../lib/ClientRequestResponseHandler/include/ClientRequestResponseHandler.hpp"
 
 #include "sdrlogger/sdrlogger.h"
 
-
-void Client::start() {
-    // auto& logger = BaseLogger::get();
-    // logger.init5Levels();
-    auto thread_pool = std::make_shared<ThreadPool>(8);
-    std::shared_ptr<ConnectionHandler> connection_handler = std::make_shared<ConnectionHandler>(address,port,ConnectionHandlerType::Client,thread_pool);
-    auto socket = connection_handler->connect();
-    std::cout << "Client started. Press Enter to stop...\n";
-    std::cin.get();  // ждём нажатия Enter
-    // connection_handler->stop();
-    // if (!socket) {
-    //     std::cerr << "Failed to connect to " << address << ":" << port << std::endl;
-    //     return;
-    // }
-    // std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-    // std::cout << "Connected. Press Enter to disconnect...\n";
-    // std::cin.get();
-    // connection_handler.disconnect();
-    // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    // connection_handler.disconnect();
-
-    //
-    // logger("INFO") << "Client started" << "\n";
-    // auto socket = connection_handler.connect();
-    // logger("INFO") << "Write type message signal/information (1-2): " << "\n";
-    // int i = 0;
-    // std::cin >> i;
-    // if (i == 1){
-    //     // Отправка Request TransportMessage
-    //     TransportHandler transport_handler(socket);
-    //     std::string json_str = R"({
-    //         "type": "signal",
-    //         "central_Freq": 0,
-    //         "signal": []
-    //     })";
-    //     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
-    //     TransportMessage transport_message(payload);
-    //     transport_handler.send(transport_message);
-    //
-    //     // Получения Response TransportMessage
-    //     TransportMessage new_transport_message = transport_handler.read();
-    //     // Парсим Response TransportMessage -> Response Message
-    //     MessageHandler message_handler;
-    //     if (new_transport_message.type == "signal") {
-    //         auto new_message = message_handler.parse(new_transport_message);
-    //         auto* new_message_signal = dynamic_cast<SignalMessage*>(new_message.get());
-    //
-    //         // Выводим данные
-    //         logger("INFO") << "Data from message: " << "\n";
-    //         std::cout << new_message_signal->getSignal().at(0) << "\n";
-    //     }
-    // } else if (i == 2) {
-    //             // Отправка Request TransportMessage
-    //     TransportHandler transport_handler(socket);
-    //     std::string json_str = R"({
-    //         "type": "information",
-    //         "numberCore": 0
-    //     })";
-    //     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
-    //     TransportMessage transport_message(payload);
-    //     transport_handler.send(transport_message);
-    //
-    //     // Получения Response TransportMessage
-    //     TransportMessage new_transport_message = transport_handler.read();
-    //     // Парсим Response TransportMessage -> Response Message
-    //     MessageHandler message_handler;
-    //     if (new_transport_message.type == "information") {
-    //         auto new_message = message_handler.parse(new_transport_message);
-    //         auto* new_message_signal = dynamic_cast<InformationMessage*>(new_message.get());
-    //
-    //         // Выводим данные
-    //         logger("INFO") << "Data from message: " << new_message_signal->getNumberCore() << "\n";
-    //     }
-    // } else {
-    //     logger("ERROR") << "Data from message: fail" << "\n";
-    //     return;
-    // }
-
+Client::Client(std::string address, int port) : address(address), port(port) {
+    connection_handler = std::make_shared<ConnectionHandler>(
+        this->address, this->port, ConnectionHandlerType::Client
+    );
+    start();
 }
 
-Client::Client(std::string address, int port) : address(address), port(port) {}
+void Client::stop() {
+    connection_handler->stop();
+}
+
+Client::~Client() {
+    stop();
+}
+
+void Client::start() {
+    connection_handler->setTaskSocket([](std::shared_ptr<tcp::socket> sock) {
+        auto &logger = BaseLogger::get();
+        TransportHandler transport_handler(sock);
+        MessageHandler message_handler;
+        int i;
+        std::cout << "Type message: ";
+        std::cin >> i;
+        auto transport_message = message_handler.serialize(
+            std::make_unique<Message>((i == 1 ? "signal" : "information"), Transaction::Request)
+        );
+        transport_handler.send(transport_message);
+
+        TransportMessage new_transport_message = transport_handler.read();
+        if (new_transport_message.type != "" && new_transport_message.type != "error") {
+            auto new_message = message_handler.parse(new_transport_message);
+
+            if (new_transport_message.type == "signal") {
+                auto *new_message_signal = dynamic_cast<SignalMessage *>(new_message.get());
+                if (new_message_signal != nullptr) {
+                    logger("INFO") << "Data from message: ";
+                    for (const auto &sample: new_message_signal->getSignal()) {
+                        std::cout << sample << " ";
+                    }
+                    std::cout << std::endl;
+                }
+            } else if (new_transport_message.type == "information") {
+                auto *new_message_information = dynamic_cast<InformationMessage *>(new_message.get());
+                logger("INFO") << "Data from message: " << new_message_information->getNumberCore();
+            } else {
+                logger("ERROR") << "Unknown message type: " << new_transport_message.type;
+            }
+        }
+
+    });
+
+    auto socket = connection_handler->connect();
+
+}

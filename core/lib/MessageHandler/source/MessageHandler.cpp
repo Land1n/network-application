@@ -10,30 +10,32 @@
 
 
 namespace json = boost::json;
-
 MessageHandler::MessageHandler(bool DEBUG) {
-    // creator_message->addMessageOnMap("signal",[](const std::string& t, json::value& v) { return std::make_unique<SignalMessage>(t, v); });
-    // creator_message->addMessageOnMap("information",[](const std::string& t, json::value& v) { return std::make_unique<InformationMessage>(t, v); });
+    creator_message->addMessageOnMap("signal", [](const std::string& type, Transaction transaction, json::value& jv) {
+        return std::make_unique<SignalMessage>(type, transaction, jv);
+    });
+    creator_message->addMessageOnMap("information", [](const std::string& type, Transaction transaction, json::value& jv) {
+        return std::make_unique<InformationMessage>(type, transaction, jv);
+    });
+
     logger.init5Levels();
     if (!DEBUG)
         logger.setLogLevel("ERROR");
-
 }
 
 std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport_message) {
-
-    std::string_view sv(reinterpret_cast<const char*>(transport_message.payload.data()),
-                           transport_message.payload.size());
+    const std::string sv{transport_message.payload.begin(),transport_message.payload.end()};
     json::value jv;
     try {
         jv = boost::json::parse(sv);
-        logger("DEBUG") << "MessageHandler : Parse payload" << "\n";
-    }catch (std::exception& e) {
-        logger("ERROR") << "MessageHandler : Parse payload" << "\n";
+        logger("DEBUG") << "MessageHandler [parse()] : Successful" << "\n";
+    } catch (std::exception& e) {
+        logger("ERROR") << "MessageHandler [parse()] : " << e.what()<< "\n";
         return nullptr;
     }
-    auto message = creator_message->createMessage(transport_message.type,jv);
-    logger("DEBUG") << "MessageHandler : Create Message" << "\n";
+    // Передаём transaction из transport_message
+    auto message = creator_message->createMessage(transport_message.type, transport_message.transaction, jv);
+    logger("DEBUG") << "MessageHandler [parse()] : Create Message" << "\n";
     return message;
 }
 
@@ -44,7 +46,14 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
     json::object payload;
 
     payload["type"] = message->type;
-    if (message->type == "signal") {
+    if (message->transaction == Transaction::Request)
+        payload["transaction"] = 0;
+    else if (message->transaction == Transaction::Response)
+        payload["transaction"] = 1;
+    else
+        payload["transaction"] = -1;
+
+    if (message->type == "signal" && message->transaction == Transaction::Response) {
         logger("DEBUG") << "MessageHandler : Serialize Message" << "\n";
         auto* signal_message = dynamic_cast<SignalMessage*>(message.get());
 
@@ -57,15 +66,12 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
         }
         payload["signal"] = signal;
 
-    } else if (message->type == "information") {
+    } else if (message->type == "information" && message->transaction == Transaction::Response) {
         logger("DEBUG") << "MessageHandler : Serialize Message" << "\n";
         auto* information_message = dynamic_cast<InformationMessage*>(message.get());
         if (!information_message) return TransportMessage(message->type, message->transaction,{});
 
         payload["numberCore"] = information_message->getNumberCore();
-    } else {
-        logger("WARN") << "MessageHandler : Serialize Message" << "\n";
-        return TransportMessage(message->type, message->transaction,{});
     }
     std::string json_str = json::serialize(payload);
     std::vector<uint8_t> bytes(json_str.begin(),json_str.end());

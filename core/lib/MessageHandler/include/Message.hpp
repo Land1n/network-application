@@ -10,7 +10,7 @@ class  Message {
 public:
     std::string type;
     Transaction transaction;
-    Message(std::string type) : type(type),transaction(Transaction::Tests) {}
-    Message(std::string type,Transaction transaction) : type(type),transaction(transaction) {}
+    Message(const std::string &type) : type(type),transaction(Transaction::Tests) {}
+    Message(const std::string &type,Transaction transaction) : type(type),transaction(transaction) {}
     virtual ~Message() = default;
 };

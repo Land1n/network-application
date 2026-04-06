@@ -6,14 +6,18 @@
 #include <memory>
 #include <boost/asio.hpp>
 
+#include "ConnectionHandler.hpp"
 
 class Client {
 public:
     Client(std::string address, int port);
     void start();
     void stop();
+
+    ~Client();
+
 private:
     std::string address;
     int port;
-    std::shared_ptr<boost::asio::io_context> io_context = std::make_shared<boost::asio::io_context>();
+    std::shared_ptr<ConnectionHandler> connection_handler;
 };
