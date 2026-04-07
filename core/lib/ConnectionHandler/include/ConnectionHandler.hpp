@@ -12,10 +12,15 @@
 using tcp = boost::asio::ip::tcp;
 
 enum class ConnectionHandlerType {
-    Client,
-    Server,
+    Client = 0,
+    Server = 1,
 };
 
+enum class Connection {
+    Connected = 0,
+    Disconnected = 1,
+    Error = -1
+};
 
 class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler>  {
 public:
@@ -39,19 +44,22 @@ public:
 
     void setTaskSocket(std::function<void(std::shared_ptr<tcp::socket>)> task);
 
-    bool is_connected(std::shared_ptr<tcp::socket> sock);
+    Connection is_connected(std::shared_ptr<tcp::socket> sock);
 
     // Методы для клиента
     void disconnect();
-    std::shared_ptr<tcp::socket> connect();
+    std::shared_ptr<tcp::socket> connect(int numTry = 10);
 
     // Геттеры
     std::vector<ConnectedSocket>& getSockets();
     std::shared_ptr<tcp::socket> getSocket();
     std::shared_ptr<tcp::acceptor> getAcceptor();
 
-
+    void setLoggerMutex(std::shared_ptr<std::mutex> logger_mutex = std::make_shared<std::mutex>());
 private:
+    std::shared_ptr<std::mutex> logger_mutex =nullptr;
+
+
     BaseLogger &logger = BaseLogger::get();
 
     ConnectionHandlerType type;
@@ -71,4 +79,6 @@ private:
 
     std::shared_ptr<std::thread> acceptor_thread = nullptr;
     std::shared_ptr<std::thread> connection_thread = nullptr;
+
+    std::mutex connection_data_mutex;
 };

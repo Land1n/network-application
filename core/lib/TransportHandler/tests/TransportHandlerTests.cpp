@@ -23,7 +23,8 @@ GTEST_TEST(TransportHandlerTest, SendAndReadOnSocketTest) {
     // No thread pool – we manage threads manually in this test
     auto server_handler = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server);
     auto client_handler = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client);
-
+    server_handler->start();
+    client_handler->start();
     auto acceptor = server_handler->getAcceptor();
     ASSERT_NE(acceptor, nullptr);
     acceptor->listen();

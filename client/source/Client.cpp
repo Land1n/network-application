@@ -31,6 +31,7 @@ Client::~Client() {
 }
 
 void Client::start() {
+    connection_handler->start();
     connection_handler->setTaskSocket([](std::shared_ptr<tcp::socket> sock) {
         auto &logger = BaseLogger::get();
         TransportHandler transport_handler(sock);

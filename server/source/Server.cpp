@@ -38,7 +38,7 @@ void Server::stop() {
 }
 
 void Server::start() {
-
+    connection_handler->start();
     connection_handler->setTaskSocket([](std::shared_ptr<tcp::socket> sock) {
 
         auto& logger = BaseLogger::get();
