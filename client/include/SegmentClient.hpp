@@ -3,46 +3,53 @@
 //
 #pragma once
 
-#include <atomic>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <chrono>
-
 #include "../../clientserveriface/include/clientserveriface/client.h"
 #include "ConnectionHandler.hpp"
-#include "Logger.hpp"
 #include "LoggerFactory.hpp"
 #include "MessageHandler.hpp"
 #include "TransportHandler.hpp"
 
-// class SegmentClient : public Network::Client {
-// public:
-//     SegmentClient(const std::string& hostname, int port, bool debug = false, uint32_t reconnectTimeoutMs = 0);
-//     ~SegmentClient() override;
-//
-//     void start() override;
-//     void stop() override;
-//     void write(const void* data, size_t sz) override;
-//     void disconnect() override;
-//
-// private:
-//     void runReadLoop();
-//     void scheduleReconnect();
-//     void doConnect();
-//
-//     std::string hostname_;
-//     int port_;
-//     bool debug_;
-//     uint32_t reconnectTimeoutMs_;
-//     std::shared_ptr<ConnectionHandler> connHandler_;
-//     std::shared_ptr<Logger> logger_;
-//     std::atomic<bool> isRunning_{false};
-//     std::atomic<bool> shouldReconnect_{false};
-//
-//     std::shared_ptr<std::thread> readThread_;
-//     std::shared_ptr<std::thread> reconnectThread_;
-//     std::mutex mutex_;
-//
-//     std::shared_ptr<MessageHandler> msgHandler_;
-// };
+#include <mutex>
+#include <memory>
+#include <functional>
+#include <atomic>
+
+class SegmentClient : public Network::Client {
+public:
+    SegmentClient(const std::string& serverAddress, int serverPort, bool debug = false);
+    ~SegmentClient();
+
+    void start() override;     // подготовка внутренних ресурсов (потоки не запускаются)
+    void stop() override;      // полная остановка, закрытие соединения
+
+    void connect();   // установка соединения (вызывает start() если нужно)
+    void disconnect() override;
+
+    void write(const void* data, size_t sz) override;
+
+    void setCloseConnectionHandler(ConnChangeHandler h) override;
+    void setNewConnectionHandler(ConnChangeHandler h) override;
+    void setReadHandler(ReadHandler h) override;
+
+    bool isRunning() const { return connectionHandler && connectionHandler->getIsWork(); }
+
+private:
+    std::string serverAddress;
+    int serverPort;
+    bool debug;
+
+    std::shared_ptr<ConnectionHandler> connectionHandler;
+    std::shared_ptr<Logger> logger;
+
+    ReadHandler readHandler;
+    ConnChangeHandler closeHandler;
+    ConnChangeHandler newHandler;
+
+    std::mutex writeMutex;
+    std::atomic<bool> readThreadRunning{false};
+    std::thread readThread;
+
+    void runReadLoop();           // тело потока чтения
+    void startReadLoop();         // запускает поток, если не запущен
+    void stopReadLoop();          // останавливает поток
+};

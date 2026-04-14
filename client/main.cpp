@@ -5,26 +5,62 @@
 #include "SegmentClient.hpp"
 #include <iostream>
 
+#include "clientserveriface/connectionid.h"
+
+static std::atomic<bool> running{true};
+
+void signalHandler(int signum) {
+    std::cout << "\nInterrupt signal (" << signum << ") received. Shutting down...\n";
+    running = false;
+}
+
 int main() {
-    // SegmentClient client("127.0.0.1", 8080, true, 5000); // reconnect after 5 sec
-    // client.setNewConnectionHandler([]() {
-    //     std::cout << "Connected to server" << std::endl;
-    // });
-    // client.setReadHandler([](const void* data, size_t sz) {
-    //     std::string msg(static_cast<const char*>(data), sz);
-    //     std::cout << "Received: " << msg << std::endl;
-    // });
-    // client.setCloseConnectionHandler([]() {
-    //     std::cout << "Connection closed" << std::endl;
-    // });
-    //
-    // client.start();
-    //
-    // // Отправить сообщение
-    // std::string msg = "Hello, server!";
-    // client.write(msg.data(), msg.size());
-    //
-    // std::this_thread::sleep_for(std::chrono::seconds(10));
-    // client.stop();
-    // return 0;
+    std::string serverAddress = "127.0.0.1";
+    int serverPort = 8080;
+    bool debug = false;
+
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
+
+    SegmentClient client(serverAddress, serverPort, debug);
+
+    client.setNewConnectionHandler([]() {
+        std::cout << "[Client] Connected to server" << std::endl;
+    });
+
+    client.setCloseConnectionHandler([]() {
+        std::cout << "[Client] Connection closed" << std::endl;
+    });
+
+    client.setReadHandler([](const void* data, size_t sz) {
+        const uint8_t* bytes = static_cast<const uint8_t*>(data);
+        std::cout << "[Client] Received " << sz << " bytes from server: ";
+        for (size_t i = 0; i < sz && i < 100; ++i) {
+            std::cout << std::hex << (int)bytes[i] << " ";
+        }
+        if (sz > 100) std::cout << "...";
+        std::cout << std::dec << std::endl;
+    });
+
+    std::cout << "Connecting to " << serverAddress << ":" << serverPort << "..." << std::endl;
+    client.connect();
+
+    // Отправляем тестовое сообщение через 1 секунду после подключения
+    std::thread sender([&client]() {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (running) {
+            const char* msg = "Hello from client!";
+            client.write(msg, strlen(msg));
+            std::cout << "[Client] Sent: " << msg << std::endl;
+        }
+    });
+
+    while (running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    sender.join();
+    client.disconnect();
+    std::cout << "Client stopped." << std::endl;
+    return 0;
 }

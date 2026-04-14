@@ -1,143 +1,157 @@
-//
-// Created by ivan on 14.03.2026.
-//
 #include "SegmentClient.hpp"
+#include <boost/json.hpp>
+#include <thread>
+#include <chrono>
 
-// SegmentClient::SegmentClient(const std::string& hostname, int port, bool debug, uint32_t reconnectTimeoutMs)
-//     : hostname_(hostname), port_(port), debug_(debug), reconnectTimeoutMs_(reconnectTimeoutMs) {
-//     connHandler_ = std::make_shared<ConnectionHandler>(hostname_, port_, ConnectionHandlerType::Client, !debug_);
-//     logger_ = LoggerFactory::getLogger("SegmentClient");
-//     if (debug_) logger_->setLevel(LogLevel::Debug);
-//     else        logger_->setLevel(LogLevel::Info);
-//     msgHandler_ = std::make_shared<MessageHandler>(debug_);
-// }
-//
-// SegmentClient::~SegmentClient() {
-//     stop();
-// }
-//
-// void SegmentClient::start() {
-//     if (isRunning_.load()) {
-//         logger_->log(LogLevel::Warn, __func__, "Client already running");
-//         return;
-//     }
-//     isRunning_.store(true);
-//     connHandler_->start();  // инициализирует внутренние структуры
-//     doConnect();            // первое подключение
-// }
-//
-// void SegmentClient::doConnect() {
-//     if (!isRunning_.load()) return;
-//
-//     logger_->log(LogLevel::Info, __func__, "Connecting to " + hostname_ + ":" + std::to_string(port_));
-//     auto sock = connHandler_->connect(10);  // 10 попыток
-//     if (sock) {
-//         logger_->log(LogLevel::Info, __func__, "Connected");
-//         if (newHandler) newHandler();   // уведомляем внешний код
-//         // Запускаем поток чтения (если не запущен или перезапускаем)
-//         if (readThread_ && readThread_->joinable()) {
-//             readThread_->join();
-//         }
-//         readThread_ = std::make_shared<std::thread>(&SegmentClient::runReadLoop, this);
-//     } else {
-//         logger_->log(LogLevel::Error, __func__, "Failed to connect");
-//         if (closeHandler) closeHandler(); // уведомляем об ошибке подключения
-//         scheduleReconnect();
-//     }
-// }
-//
-// void SegmentClient::runReadLoop() {
-//     auto socket = connHandler_->getSocket().ptr;
-//     if (!socket || !socket->is_open()) {
-//         logger_->log(LogLevel::Error, __func__, "No valid socket");
-//         return;
-//     }
-//
-//     TransportHandler transport(socket, 0xA0ABA0A, debug_);
-//     logger_->log(LogLevel::Debug, __func__, "Read loop started");
-//
-//     while (isRunning_.load()) {
-//         TransportMessage msg = transport.read();
-//         if (msg.type.empty() && msg.payload.empty()) {
-//             // соединение разорвано
-//             logger_->log(LogLevel::Warn, __func__, "Connection lost");
-//             break;
-//         }
-//
-//         if (readHandler) {
-//             readHandler(msg.payload.data(), msg.payload.size());
-//         }
-//     }
-//
-//     // Очистка после разрыва
-//     if (isRunning_.load()) {
-//         logger_->log(LogLevel::Info, __func__, "Connection lost, cleaning up");
-//         if (closeHandler) closeHandler();
-//         connHandler_->disconnect(false); // закрываем сокет, но не ждём поток
-//         scheduleReconnect();
-//     }
-// }
-//
-// void SegmentClient::scheduleReconnect() {
-//     if (!isRunning_.load()) return;
-//     if (reconnectTimeoutMs_ == 0) {
-//         logger_->log(LogLevel::Info, __func__, "Reconnect disabled, stopping client");
-//         stop();
-//         return;
-//     }
-//
-//     logger_->log(LogLevel::Info, __func__, "Scheduling reconnect in " + std::to_string(reconnectTimeoutMs_) + " ms");
-//     std::this_thread::sleep_for(std::chrono::milliseconds(reconnectTimeoutMs_));
-//     if (isRunning_.load()) {
-//         doConnect();
-//     }
-// }
-//
-// void SegmentClient::write(const void* data, size_t sz) {
-//     if (!isRunning_.load()) {
-//         logger_->log(LogLevel::Warn, __func__, "Client not running");
-//         return;
-//     }
-//     auto socket = connHandler_->getSocket().ptr;
-//     if (!socket || !socket->is_open()) {
-//         logger_->log(LogLevel::Warn, __func__, "Socket not open");
-//         disconnect();
-//         return;
-//     }
-//
-//     std::vector<uint8_t> payload(static_cast<const uint8_t*>(data),
-//                                  static_cast<const uint8_t*>(data) + sz);
-//     TransportMessage msg("raw", Transaction::Tests, std::move(payload));
-//     TransportHandler transport(socket, 0xA0ABA0A, debug_);
-//     bool ok = transport.write(msg);
-//     if (!ok) {
-//         logger_->log(LogLevel::Error, __func__, "Write failed, disconnecting");
-//         disconnect();
-//     }
-// }
-//
-// void SegmentClient::disconnect() {
-//     logger_->log(LogLevel::Debug, __func__, "Disconnecting");
-//     if (connHandler_->getSocket().ptr && connHandler_->getSocket().ptr->is_open()) {
-//         connHandler_->disconnect(true);
-//     }
-//     if (closeHandler) closeHandler();
-// }
-//
-// void SegmentClient::stop() {
-//     if (!isRunning_.load()) return;
-//     isRunning_.store(false);
-//     shouldReconnect_.store(false);
-//
-//     logger_->log(LogLevel::Info, __func__, "Stopping client");
-//
-//     disconnect();
-//
-//     if (readThread_ && readThread_->joinable()) {
-//         readThread_->join();
-//         readThread_.reset();
-//     }
-//
-//     connHandler_->stop();
-//     logger_->log(LogLevel::Info, __func__, "Client stopped");
-// }
+SegmentClient::SegmentClient(const std::string& serverAddress, int serverPort, bool debug)
+    : serverAddress(serverAddress), serverPort(serverPort), debug(debug)
+{
+    connectionHandler = std::make_shared<ConnectionHandler>(
+        serverAddress, serverPort, ConnectionHandlerType::Client, !debug
+    );
+    logger = LoggerFactory::getLogger("SegmentClient");
+    logger->setLevel(debug ? LogLevel::Debug : LogLevel::Info);
+}
+
+SegmentClient::~SegmentClient() {
+    stop();
+}
+
+void SegmentClient::start() {
+    if (!connectionHandler->getIsWork()) {
+        connectionHandler->start();
+        logger->log(LogLevel::Info, "start", "Client handler started");
+    }
+}
+
+void SegmentClient::stop() {
+    logger->log(LogLevel::Info, "stop", "Stopping client...");
+    disconnect();        // закрывает сокет и останавливает потоки чтения
+    connectionHandler->stop(); // гарантированно останавливает внутренние потоки
+    stopReadLoop();
+    logger->log(LogLevel::Info, "stop", "Client stopped");
+}
+
+void SegmentClient::connect() {
+    if (!connectionHandler->getIsWork()) {
+        start(); // если не стартовали, стартуем
+    }
+    auto sock = connectionHandler->connect();
+    if (sock.ptr) {
+        logger->log(LogLevel::Info, "connect", "Connected to " + serverAddress + ":" + std::to_string(serverPort));
+        if (newHandler) newHandler();
+        startReadLoop();
+    } else {
+        logger->log(LogLevel::Error, "connect", "Connection failed");
+    }
+}
+
+void SegmentClient::disconnect() {
+    stopReadLoop();
+    if (connectionHandler->getIsWork()) {
+        connectionHandler->disconnect(true);
+        if (closeHandler) closeHandler();
+        logger->log(LogLevel::Info, "disconnect", "Disconnected");
+    }
+}
+
+void SegmentClient::write(const void* data, size_t sz) {
+    auto sock = connectionHandler->getSocket();
+    if (!sock.ptr || !sock.ptr->is_open()) {
+        logger->log(LogLevel::Warn, "write", "Socket not open");
+        return;
+    }
+
+    // Формируем JSON с массивом байт
+    const uint8_t* bytes = static_cast<const uint8_t*>(data);
+    boost::json::array arr;
+    arr.reserve(sz);
+    for (size_t i = 0; i < sz; ++i) {
+        arr.push_back(bytes[i]);
+    }
+
+    boost::json::object obj;
+    obj["type"] = "raw";
+    obj["transaction"] = static_cast<int>(Transaction::Request);
+    obj["data"] = std::move(arr);
+
+    std::string jsonStr = boost::json::serialize(obj);
+    std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
+    TransportMessage tm("raw", Transaction::Request, payload);
+
+    std::lock_guard<std::mutex> lock(writeMutex);
+    TransportHandler transport(sock.ptr);
+    if (!transport.write(tm)) {
+        logger->log(LogLevel::Error, "write", "Failed to send data");
+    }
+}
+
+void SegmentClient::runReadLoop() {
+    auto sock = connectionHandler->getSocket();
+    if (!sock.ptr || !sock.ptr->is_open()) {
+        logger->log(LogLevel::Warn, "runReadLoop", "Socket not open, read loop aborted");
+        return;
+    }
+
+    TransportHandler transport(sock.ptr, 0xA0ABA0A, debug);
+    while (connectionHandler->getIsWork() && sock.ptr->is_open()) {
+        TransportMessage tm = transport.read();
+        if (tm.type.empty()) break; // соединение закрыто или ошибка
+
+        std::string jsonStr(tm.payload.begin(), tm.payload.end());
+        try {
+            auto jv = boost::json::parse(jsonStr);
+            if (jv.is_object() && jv.as_object().contains("data")) {
+                const auto& dataArr = jv.at("data").as_array();
+                std::vector<uint8_t> buffer;
+                buffer.reserve(dataArr.size());
+                for (const auto& val : dataArr) {
+                    buffer.push_back(static_cast<uint8_t>(val.as_int64()));
+                }
+                if (readHandler) {
+                    readHandler(buffer.data(), buffer.size());
+                }
+            }
+        } catch (std::exception& e) {
+            logger->log(LogLevel::Warn, "runReadLoop", "JSON parse error: " + std::string(e.what()));
+        }
+    }
+    logger->log(LogLevel::Debug, "runReadLoop", "Read loop finished");
+    if (closeHandler) closeHandler();
+}
+
+void SegmentClient::startReadLoop() {
+    if (readThreadRunning) return;
+    readThreadRunning = true;
+    readThread = std::thread([this]() {
+        runReadLoop();
+        readThreadRunning = false;
+    });
+}
+
+void SegmentClient::stopReadLoop() {
+    if (readThreadRunning && readThread.joinable()) {
+        // Ждём завершения потока чтения (он сам выйдет, когда isWork станет false)
+        readThread.join();
+        readThreadRunning = false;
+    }
+}
+
+void SegmentClient::setCloseConnectionHandler(ConnChangeHandler h) {
+    closeHandler = std::move(h);
+    connectionHandler->setCloseConnectionHandler([this](ConnectedSocket /*sock*/) {
+        if (closeHandler) closeHandler();
+        stopReadLoop(); // дополнительная защита
+    });
+}
+
+void SegmentClient::setNewConnectionHandler(ConnChangeHandler h) {
+    newHandler = std::move(h);
+    connectionHandler->setNewConnectionHandler([this](ConnectedSocket /*sock*/) {
+        if (newHandler) newHandler();
+    });
+}
+
+void SegmentClient::setReadHandler(ReadHandler h) {
+    readHandler = std::move(h);
+}

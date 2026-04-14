@@ -30,16 +30,16 @@ GTEST_TEST(ConnectionHandlerLifecycleTest, StartStopBehavior) {
 
     auto handler = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server,false);
     handler->start();
-    EXPECT_TRUE(handler->isInWork());
+    EXPECT_TRUE(handler->getIsWork());
 
     handler->stop();
-    EXPECT_FALSE(handler->isInWork());
+    EXPECT_FALSE(handler->getIsWork());
 
     handler->stop();
-    EXPECT_FALSE(handler->isInWork());
+    EXPECT_FALSE(handler->getIsWork());
 
     auto sock = handler->accept();
-    EXPECT_EQ(sock, nullptr);
+    EXPECT_EQ(sock.ptr, nullptr);
 }
 /*
  * Подключается клиент, сервер отслеживает подключение
@@ -56,7 +56,7 @@ GTEST_TEST(ConnectionHandlerClientTest, ConnectAndDisconnect) {
 
     server->listen();
     auto client_sock = client->connect();
-    ASSERT_NE(client_sock, nullptr);
+    ASSERT_NE(client_sock.ptr, nullptr);
     auto start = std::chrono::steady_clock::now();
     while (server->getSockets().empty()) {
         if (std::chrono::steady_clock::now() - start > std::chrono::seconds(1)) {
@@ -94,7 +94,7 @@ GTEST_TEST(ConnectionHandlerServerTest,BadClientTask) {
 
     server->listen();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    client->setTaskSocket([] (std::shared_ptr<tcp::socket>) {
+    client->setTaskSocket([] (ConnectedSocket&) {
         throw std::runtime_error("Test exception from task");
     });
     client->connect();
@@ -115,7 +115,7 @@ GTEST_TEST(ConnectionHandlerServerTest, BadServerTask) {
     client->start();
 
 
-    server->setTaskSocket([](std::shared_ptr<tcp::socket>) {
+    server->setTaskSocket([](ConnectedSocket&) {
         throw std::runtime_error("Test exception from server task");
     });
 
@@ -123,17 +123,17 @@ GTEST_TEST(ConnectionHandlerServerTest, BadServerTask) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     auto client_sock = client->connect();
-    ASSERT_NE(client_sock, nullptr);
+    ASSERT_NE(client_sock.ptr, nullptr);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    EXPECT_TRUE(server->isInWork());
+    EXPECT_TRUE(server->getIsWork());
     EXPECT_EQ(server->getSockets().size(), 1);
 
     auto client2 = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
     client2->start();
     auto client_sock2 = client2->connect();
-    ASSERT_NE(client_sock2, nullptr);
+    ASSERT_NE(client_sock2.ptr, nullptr);
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     EXPECT_EQ(server->getSockets().size(), 2);
 
@@ -155,7 +155,7 @@ GTEST_TEST(ConnectionHandlerClientTest, ReconnectAfterDisconnect) {
     server->listen();
 
     auto sock1 = client->connect();
-    ASSERT_NE(sock1, nullptr);
+    ASSERT_NE(sock1.ptr, nullptr);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_EQ(server->getSockets().size(), 1);
 
@@ -164,7 +164,7 @@ GTEST_TEST(ConnectionHandlerClientTest, ReconnectAfterDisconnect) {
     EXPECT_EQ(server->getSockets().size(), 0);
 
     auto sock2 = client->connect();
-    ASSERT_NE(sock2, nullptr);
+    ASSERT_NE(sock2.ptr, nullptr);
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     EXPECT_EQ(server->getSockets().size(), 1);
 
@@ -179,7 +179,7 @@ GTEST_TEST(ConnectionHandlerServerTest, MultipleClientsWithTasks) {
     server->start();
 
     std::atomic<int> task_counter{0};
-    server->setTaskSocket([&task_counter](std::shared_ptr<tcp::socket>) {
+    server->setTaskSocket([&task_counter](ConnectedSocket&) {
         task_counter++;
     });
 
@@ -214,7 +214,7 @@ GTEST_TEST(ConnectionHandlerServerTest, ChangeTaskAfterListen) {
     server->start();
 
     std::atomic<int> first_task_counter{0};
-    server->setTaskSocket([&first_task_counter](auto) { first_task_counter++; });
+    server->setTaskSocket([&first_task_counter](ConnectedSocket&) { first_task_counter++; });
     server->listen();
 
     // Подключаем первого клиента
@@ -226,7 +226,7 @@ GTEST_TEST(ConnectionHandlerServerTest, ChangeTaskAfterListen) {
 
     // Меняем задачу
     std::atomic<int> second_task_counter{0};
-    server->setTaskSocket([&second_task_counter](auto) { second_task_counter++; });
+    server->setTaskSocket([&second_task_counter](ConnectedSocket&) { second_task_counter++; });
 
     // Подключаем второго клиента
     auto client2 = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
@@ -260,7 +260,7 @@ GTEST_TEST(ConnectionHandlerStressTest, NConnectAndStopServer) {
         c->start();
         auto client_sock = c->connect();
         clients.push_back(c);
-        ASSERT_NE(client_sock, nullptr);
+        ASSERT_NE(client_sock.ptr, nullptr);
     }
     auto start = std::chrono::steady_clock::now();
 
@@ -299,7 +299,7 @@ GTEST_TEST(ConnectionHandlerStressTest, LongLivedConnections) {
         auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
         client->start();
         auto sock = client->connect();
-        ASSERT_NE(sock, nullptr);
+        ASSERT_NE(sock.ptr, nullptr);
         clients.push_back(client);
     }
 

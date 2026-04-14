@@ -23,58 +23,77 @@ public:
 
 class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler> {
 public:
-    ConnectionHandler(std::string &address, int port, ConnectionHandlerType type, bool INFO = true);
+
+    ConnectionHandler(const std::string &address, int port, ConnectionHandlerType type, bool INFO = true);
     ~ConnectionHandler();
 
     void start();
     void stop();
 
-    void setTaskSocket(std::function<void(std::shared_ptr<tcp::socket>)> task);
-
     // Методы для сервера
     void listen();
     bool disconnected(ConnectedSocket &connected_socket, bool delete_socket = false);
-    std::shared_ptr<tcp::socket> accept(bool blocking = true);
+    ConnectedSocket accept(bool blocking = true);
+
     // Методы для клиента
     void disconnect(bool needJoinThread = true);
-    std::shared_ptr<tcp::socket> connect(int numTry = 10);
+    ConnectedSocket connect(int numTry = 10);
 
     // Геттеры
     std::vector<ConnectedSocket>& getSockets();
     ConnectedSocket getSocket();
     std::shared_ptr<tcp::acceptor> getAcceptor();
+    bool getIsWork() const;
 
-    bool isInWork() const;
+    // Метод для поиска ConnectedSocket по ID
+    ConnectedSocket findConnectedSocket(size_t id);
 
-    void runAcceptorThread();
+    // Сеттеры
+    void setTaskSocket(std::function<void(ConnectedSocket&)> task);
+    void setGenerateID(std::function<size_t()>);
 
-    void runConnectionCheckThread();
+    void setNewConnectionHandler(std::function<void(ConnectedSocket)> h);
+    void setCloseConnectionHandler(std::function<void(ConnectedSocket)> h);
 
 private:
 
-    void runTask(std::shared_ptr<tcp::socket> socket);
+    // Методы запуска потоков
+    void runAcceptorThread();
+    void runConnectionCheckThread();
 
+    // Декоратор над Task`ом
+    void runTask(ConnectedSocket& connected_socket);
+
+    // Методы создания нужных объектов
     std::shared_ptr<tcp::acceptor> createAcceptor();
     std::shared_ptr<tcp::socket> createSocket();
 
+    // Метод для проверки подключения ConnectedSocket
     Connection is_connected(ConnectedSocket sock);
 
     std::shared_ptr<Logger> logger;
     ConnectionHandlerType type;
+
     boost::asio::io_context io_context;
+
     std::string address;
     int port;
+
     std::atomic<bool> isWork{false};
-    std::function<void(std::shared_ptr<tcp::socket>)> task_;
 
     std::shared_ptr<tcp::acceptor> acceptor_;
+
     ConnectedSocket socket_client_;
     std::vector<ConnectedSocket> connected_sockets_;
 
     std::mutex connection_data_mutex;
+    // CallBack`и
+    std::function<size_t()> generateID;
+    std::function<void(ConnectedSocket&)> task_;
+    std::function<void(ConnectedSocket)> newConnection;
+    std::function<void(ConnectedSocket)> closeConnection;
 
-    IdConnectionGenerator generator;
-
+    // Умные указатели на потоки
     std::shared_ptr<std::thread> acceptor_thread = nullptr;
     std::shared_ptr<std::thread> connection_thread = nullptr;
 };

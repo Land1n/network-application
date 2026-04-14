@@ -35,8 +35,8 @@ GTEST_TEST(TransportHandlerTest, SendAndReadOnSocketTest) {
 
     std::thread server_thread([server_handler, &test_data]() {
         auto socket_on_server = server_handler->accept();
-        ASSERT_NE(socket_on_server, nullptr);
-        TransportHandler server_transport(socket_on_server);
+        ASSERT_NE(socket_on_server.ptr, nullptr);
+        TransportHandler server_transport(socket_on_server.ptr);
         TransportMessage msg = server_transport.read();
         EXPECT_EQ(msg.payload, test_data);
     });
@@ -44,8 +44,8 @@ GTEST_TEST(TransportHandlerTest, SendAndReadOnSocketTest) {
     std::thread client_thread([client_handler, &test_data]() {
         // std::this_thread::sleep_for(std::chrono::milliseconds(100));
         auto socket_on_client = client_handler->connect();
-        ASSERT_NE(socket_on_client, nullptr);
-        TransportHandler client_transport(socket_on_client);
+        ASSERT_NE(socket_on_client.ptr, nullptr);
+        TransportHandler client_transport(socket_on_client.ptr);
         TransportMessage msg;
         msg.payload = test_data;
         bool sent = client_transport.write(msg);
@@ -72,8 +72,8 @@ GTEST_TEST(TransportHandlerTest, MultipleMessages) {
     std::atomic<int> received_count{0};
     const int expected_count = 5;
 
-    server->setTaskSocket([&](std::shared_ptr<tcp::socket> sock) {
-        TransportHandler transport(sock);
+    server->setTaskSocket([&](ConnectedSocket& cs) {
+        TransportHandler transport(cs.ptr);   // cs.ptr вместо sock
         for (int i = 0; i < expected_count; ++i) {
             TransportMessage msg = transport.read();
             if (!msg.type.empty()) {
@@ -84,8 +84,8 @@ GTEST_TEST(TransportHandlerTest, MultipleMessages) {
     server->listen();
 
     auto client_sock = client->connect();
-    ASSERT_NE(client_sock, nullptr);
-    TransportHandler client_transport(client_sock);
+    ASSERT_NE(client_sock.ptr, nullptr);
+    TransportHandler client_transport(client_sock.ptr);
 
     for (int i = 0; i < expected_count; ++i) {
         boost::json::object obj;
@@ -121,8 +121,8 @@ GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
     std::promise<void> read_started;
     std::future<void> read_started_future = read_started.get_future();
 
-    server->setTaskSocket([&](std::shared_ptr<tcp::socket> sock) {
-        TransportHandler transport(sock);
+    server->setTaskSocket([&](ConnectedSocket&cs) {
+        TransportHandler transport(cs.ptr);
         read_started.set_value();
         TransportMessage msg = transport.read();
         EXPECT_TRUE(msg.type.empty());
@@ -130,13 +130,13 @@ GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
     server->listen();
 
     auto client_sock = client->connect();
-    ASSERT_NE(client_sock, nullptr);
+    ASSERT_NE(client_sock.ptr, nullptr);
 
     uint32_t magic = 0xA0ABA0A;
-    boost::asio::write(*client_sock, boost::asio::buffer(&magic, 4));
+    boost::asio::write(*client_sock.ptr, boost::asio::buffer(&magic, 4));
     read_started_future.wait();
 
-    client_sock->close();
+    client_sock.ptr->close();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     client->stop();
@@ -158,9 +158,9 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
     std::mutex server_handlers_mutex;
     std::condition_variable server_handlers_cv;
 
-    server->setTaskSocket([&](std::shared_ptr<tcp::socket> sock) {
+    server->setTaskSocket([&](ConnectedSocket& cs) {
         server_handlers_active++;
-        TransportHandler transport(sock, 0xA0ABA0A, false);
+        TransportHandler transport(cs.ptr, 0xA0ABA0A, false);
         try {
             while (true) {
                 TransportMessage req = transport.read();
@@ -206,8 +206,8 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
         auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client,false);
         client->start();
 
-        client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](std::shared_ptr<tcp::socket> sock) {
-            TransportHandler transport(sock, 0xA0ABA0A, false);
+        client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](ConnectedSocket& cs) {
+            TransportHandler transport(cs.ptr, 0xA0ABA0A, false);
             try {
                 for (int msg_id = 1; msg_id <= messages_per_client; ++msg_id) {
                     // Формируем JSON-запрос
@@ -231,8 +231,8 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
                     EXPECT_EQ(response_data, expected);
                 }
                 // Закрываем соединение, чтобы серверный обработчик вышел из цикла
-                sock->shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-                sock->close();
+                cs.ptr->shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+                cs.ptr->close();
             } catch (const std::exception&) {
                 // игнорируем
             }
@@ -241,7 +241,7 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
         });
 
         auto sock = client->connect();
-        ASSERT_NE(sock, nullptr);
+        ASSERT_NE(sock.ptr, nullptr);
         clients.push_back(client);
     }
 

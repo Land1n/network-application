@@ -5,7 +5,7 @@ static std::string dataForLogger(ConnectionHandlerType type) {
     return (type == ConnectionHandlerType::Server ? "[Server] " : "[Client] ");
 }
 
-ConnectionHandler::ConnectionHandler(std::string &address, int port, ConnectionHandlerType type, bool INFO)
+ConnectionHandler::ConnectionHandler(const std::string &address, int port, ConnectionHandlerType type, bool INFO)
     : address(address), port(port), type(type) {
     logger = LoggerFactory::getLogger("ConnectionHandler");
     if (INFO) logger->setLevel(LogLevel::Error);
@@ -33,35 +33,59 @@ Connection ConnectionHandler::is_connected(ConnectedSocket sock) {
 
 }
 
+ConnectedSocket ConnectionHandler::findConnectedSocket(size_t id) {
+    std::lock_guard<std::mutex> lock(connection_data_mutex);
+    auto it = std::find_if(connected_sockets_.begin(), connected_sockets_.end(),
+        [id](const ConnectedSocket& cs) { return cs.id == id; });
+    if (it != connected_sockets_.end()) {
+        return *it;  // копия
+    }
+    return ConnectedSocket();  // пустой
+}
+
 std::vector<ConnectedSocket>& ConnectionHandler::getSockets() { return connected_sockets_; }
 std::shared_ptr<tcp::acceptor> ConnectionHandler::getAcceptor() { return acceptor_; }
 ConnectedSocket ConnectionHandler::getSocket() { return socket_client_; }
 
-void ConnectionHandler::setTaskSocket(std::function<void(std::shared_ptr<tcp::socket>)> task) {
+void ConnectionHandler::setTaskSocket(std::function<void(ConnectedSocket&)> task) {
     task_ = std::move(task);
 }
 
-void ConnectionHandler::runTask(std::shared_ptr<tcp::socket> socket) {
+void ConnectionHandler::setGenerateID(std::function<size_t()> g) {
+    generateID = g;
+}
+
+void ConnectionHandler::setNewConnectionHandler(std::function<void(ConnectedSocket)> h) {
+    newConnection = h;
+}
+
+void ConnectionHandler::setCloseConnectionHandler(std::function<void(ConnectedSocket)> h) {
+    closeConnection = h;
+}
+
+void ConnectionHandler::runTask(ConnectedSocket& connected_socket) {
     try {
-        if (task_) task_(socket);
+        if (task_) task_(connected_socket);
     } catch (std::exception &e) {
         logger->log(LogLevel::Error, "task", dataForLogger(type) + e.what());
     }
 }
 
-bool ConnectionHandler::isInWork() const { return isWork.load(); }
+bool ConnectionHandler::getIsWork() const { return isWork.load(); }
 
 void ConnectionHandler::runAcceptorThread() {
     auto self = shared_from_this();
     if (type == ConnectionHandlerType::Server)
         acceptor_thread = std::make_shared<std::thread>([self]() {
-            self->logger->log(LogLevel::Info, "runAcceptorThread",dataForLogger(self->type) + "Start accept connection");
+            self->logger->log(LogLevel::Info, "runAcceptorThread", dataForLogger(self->type) + "Start accept connection");
             while (self->isWork.load()) {
-                auto socket = self->accept(false);
-                if (socket) self->runTask(socket);
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                ConnectedSocket cs = self->accept(false);
+                if (cs.ptr) {
+                    self->runTask(cs);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            self->logger->log(LogLevel::Info, "runAcceptorThread",dataForLogger(self->type) + "Stop accept connection");
+            self->logger->log(LogLevel::Info, "runAcceptorThread", dataForLogger(self->type) + "Stop accept connection");
         });
 }
 
@@ -69,18 +93,18 @@ void ConnectionHandler::runConnectionCheckThread() {
     auto self = shared_from_this();
     connection_thread = std::make_shared<std::thread>([self]() {
         try {
-            self->logger->log(LogLevel::Debug, "runConnectionCheckThread",
+            self->logger->log(LogLevel::Debug, "ConnectionCheckThread",
                               dataForLogger(self->type) + "Start check connection...");
             auto start = std::chrono::steady_clock::now();
             while (self->isWork.load()) {
                 if (self->type == ConnectionHandlerType::Server) {
-                    if (std::chrono::steady_clock::now() - start > std::chrono::seconds(2)) {
+                    if (std::chrono::steady_clock::now() - start > std::chrono::seconds(1)) {
                         start = std::chrono::steady_clock::now();
                         self->logger->log(LogLevel::Debug, "connection_thread", dataForLogger(self->type)  +  "self->connected_sockets_.size() = " + std::to_string(self->connected_sockets_.size()));
                     }
                     for (auto socket: self->connected_sockets_) {
                         if (self->is_connected(socket) != Connection::Connected) {
-                            self->logger->log(LogLevel::Debug, "runConnectionCheckThread", dataForLogger(self->type) +
+                            self->logger->log(LogLevel::Debug, "ConnectionCheckThread", dataForLogger(self->type) +
                                                   "Socket " + socket.getAddressAndPort() +
                                                   " is_connected() = Disconnected");
 
@@ -90,27 +114,27 @@ void ConnectionHandler::runConnectionCheckThread() {
                     }
                 } else if (self->type == ConnectionHandlerType::Client) {
                     if (self->is_connected(self->socket_client_) != Connection::Connected) {
-                        self->logger->log(LogLevel::Debug, "runConnectionCheckThread", dataForLogger(self->type) +
+                        self->logger->log(LogLevel::Debug, "ConnectionCheckThread", dataForLogger(self->type) +
                                               "Socket " + self->address + ":" + std::to_string(self->port) +
                                               " is_connected() = false");
-                        self->logger->log(LogLevel::Info, "runConnectionCheckThread", dataForLogger(self->type) +
+                        self->logger->log(LogLevel::Info, "ConnectionCheckThread", dataForLogger(self->type) +
                                                                                "Connection lost, closing socket");
                         if (self->socket_client_.ptr && self->socket_client_.ptr->is_open()) {
                             boost::system::error_code ec;
                             self->socket_client_.ptr->close(ec);
                             if (ec) {
-                                self->logger->log(LogLevel::Warn, "runConnectionCheckThread",
+                                self->logger->log(LogLevel::Warn, "ConnectionCheckThread",
                                                   dataForLogger(self->type) + "Close error: " + ec.message());
                             }
                         }
                         break;
                     }
                 }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            self->logger->log(LogLevel::Debug, "runConnectionCheckThread",dataForLogger(self->type) + "Stop check connection");
+            self->logger->log(LogLevel::Debug, "ConnectionCheckThread",dataForLogger(self->type) + "Stop check connection");
         } catch (std::exception &e) {
-            self->logger->log(LogLevel::Error, "runConnectionCheckThread", dataForLogger(self->type)  + e.what());
+            self->logger->log(LogLevel::Error, "ConnectionCheckThread", dataForLogger(self->type)  + e.what());
 
         }
     });
@@ -128,6 +152,7 @@ void ConnectionHandler::start() {
 }
 
 void ConnectionHandler::stop() {
+    if (!isWork.load()) {return;}
     isWork.store(false);
     logger->log(LogLevel::Debug, __func__, dataForLogger(type) + "Stopping...");
 
@@ -170,7 +195,6 @@ void ConnectionHandler::stop() {
     logger->log(LogLevel::Info, __func__, dataForLogger(type) + "Stop");
 }
 
-
 std::shared_ptr<tcp::acceptor> ConnectionHandler::createAcceptor() {
     logger->log(LogLevel::Debug, __func__, dataForLogger(type) + "Creating acceptor...");
     if (type == ConnectionHandlerType::Client) {
@@ -201,36 +225,43 @@ std::shared_ptr<tcp::acceptor> ConnectionHandler::createAcceptor() {
 
 std::shared_ptr<tcp::socket> ConnectionHandler::createSocket() { return std::make_shared<tcp::socket>(io_context); }
 
-std::shared_ptr<tcp::socket> ConnectionHandler::accept(bool blocking) {
+ConnectedSocket ConnectionHandler::accept(bool blocking) {
     if (type == ConnectionHandlerType::Client) {
         logger->log(LogLevel::Error, __func__, dataForLogger(type) + "ConnectionHandlerType = Client");
-        return nullptr;
+        return ConnectedSocket();
     }
     if (!isWork.load()) {
         logger->log(LogLevel::Error, __func__, dataForLogger(type) + "isWork = false");
-        return nullptr;
+        return ConnectedSocket();
     }
-    auto socket = std::make_shared<tcp::socket>(io_context);
+    auto socket = createSocket();
     boost::system::error_code ec;
     acceptor_->non_blocking(!blocking);
     acceptor_->accept(*socket, ec);
     if (ec == boost::asio::error::would_block)
-        return nullptr;
+        return ConnectedSocket();
     if (ec) {
         logger->log(LogLevel::Error, __func__, dataForLogger(type) + ec.message());
-        return nullptr;
+        return ConnectedSocket();
     }
-    ConnectedSocket connected_socket(socket,generator.generate());
+    if (!generateID) {
+        IdConnectionGenerator generator;
+        generateID = [&generator](){return generator.generate();};
+    }
+    ConnectedSocket connected_socket(socket, generateID());
+    if (newConnection) newConnection(connected_socket);
     logger->log(LogLevel::Info, __func__, dataForLogger(type) + "Socket " + connected_socket.getAddressAndPort() + " id: " + std::to_string(connected_socket.id));
     std::lock_guard<std::mutex> lock(connection_data_mutex);
     connected_sockets_.push_back(connected_socket);
-    return socket;
+    // Возвращаем копию
+    return connected_socket;
 }
 
 bool ConnectionHandler::disconnected(ConnectedSocket &connected_socket, bool delete_socket) {
     boost::system::error_code ec;
     try {
         connected_socket.ptr->close(ec);
+        if (closeConnection) closeConnection(connected_socket);
         if (!ec) {
             logger->log(LogLevel::Info, __func__, dataForLogger(type) + "Disconnected " + connected_socket.getAddressAndPort());
         } else {
@@ -269,6 +300,7 @@ void ConnectionHandler::disconnect(bool needJoinThread) {
     }
     if (socket_client_.ptr->is_open()) {
         socket_client_.ptr->close(ec);
+        if (closeConnection) closeConnection(socket_client_);
         if (ec) {
             logger->log(LogLevel::Error, __func__, dataForLogger(type) + "Close error: " + ec.message());
         } else {
@@ -277,10 +309,10 @@ void ConnectionHandler::disconnect(bool needJoinThread) {
     }
 }
 
-std::shared_ptr<tcp::socket> ConnectionHandler::connect(int numTry) {
+ConnectedSocket ConnectionHandler::connect(int numTry) {
     if (type == ConnectionHandlerType::Server) {
         logger->log(LogLevel::Error, __func__, dataForLogger(type) + "ConnectionHandlerType = Server");
-        return nullptr;
+        return ConnectedSocket();
     }
     boost::system::error_code ec;
     for (int i = 1; i <= numTry; ++i) {
@@ -294,14 +326,21 @@ std::shared_ptr<tcp::socket> ConnectionHandler::connect(int numTry) {
             logger->log(LogLevel::Info, __func__, dataForLogger(type) + "Connect socket " +
                         socket_client_.ptr->remote_endpoint().address().to_string() + ":" +
                         std::to_string(socket_client_.ptr->remote_endpoint().port()));
+            // Устанавливаем id для клиентского сокета
+            if (!generateID) {
+                IdConnectionGenerator generator;
+                generateID = [&generator](){return generator.generate();};
+            }
+            socket_client_.id = generateID();
             runConnectionCheckThread();
-            runTask(socket_client_.ptr);
-            return socket_client_.ptr;
+            runTask(socket_client_);
+            if (newConnection) newConnection(socket_client_);
+            return socket_client_;  // возвращаем копию
         }
         if (i == numTry) stop();
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    return nullptr;
+    return ConnectedSocket();
 }
 
 void ConnectionHandler::listen() {
