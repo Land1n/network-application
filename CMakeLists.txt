@@ -11,13 +11,12 @@ set(PARENT_PROJECT ON)
 
 add_subdirectory(core/lib/ConnectionHandler)
 add_subdirectory(core/lib/TransportHandler)
+add_subdirectory(core/lib/Logger)
 add_subdirectory(core/lib/MessageHandler)
 add_subdirectory(core/lib/RequestResponseHandler)
 add_subdirectory(server)
 add_subdirectory(client)
-
-add_subdirectory(logger-ifaces)
-
+add_subdirectory(clientserveriface)
 file(GLOB_RECURSE TEST_SOURCES "core/lib/*/tests/*.cpp" "server/lib/*/tests/*.cpp")
 
 
@@ -33,6 +32,7 @@ target_link_libraries(all_tests PRIVATE
         Boost::thread
         Boost::json
         Boost::chrono
+        Logger
         ConnectionHandler
         TransportHandler
         MessageHandler

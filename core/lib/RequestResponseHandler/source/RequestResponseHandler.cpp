@@ -4,8 +4,8 @@
 
 #include "RequestResponseHandler.hpp"
 
-RequestResponseHandlerBase::RequestResponseHandlerBase(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG) : creator_message(creator_message) {
-    logger.init5Levels();
-    if (!DEBUG)
-        logger.setLogLevel("ERROR");
+RequestResponseHandlerBase::RequestResponseHandlerBase(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG)
+    : creator_message(creator_message) {
+    logger = LoggerFactory::getLogger("RequestResponseHandler");
+    if (!DEBUG) logger->setLevel(LogLevel::Error);
 }

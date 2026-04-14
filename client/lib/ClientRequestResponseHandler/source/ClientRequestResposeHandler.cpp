@@ -1,35 +1,39 @@
 #include "ClientRequestResponseHandler.hpp"
+#include <boost/json.hpp>
+
+namespace json = boost::json;
 
 std::unique_ptr<Message> ClientRequestResponseHandler::processingRequestResponse(std::unique_ptr<Message> message) {
-    // TODO: пока я так и не понял что делать с сообшениями так пока будут отправлять статические данные
-
     if (message->transaction == Transaction::Request) {
-        logger("DEBUG") << "ServerRequestResponseHandler : message->transactionType:" << static_cast<int>(message->transaction) << "\n";
+        logger->log(LogLevel::Debug, __func__,
+                    "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
         json::value jv;
         if (message->type == "signal") {
-            logger("DEBUG") << "ServerRequestResponseHandler : Request message->type:" << message->type << "\n";
+            logger->log(LogLevel::Debug, __func__, "Request message->type: " + message->type);
             std::string json_str = R"({
                 "type": "signal",
-                "transaction" : "0"
+                "transaction" : 0
             })";
             jv = json::parse(json_str);
         } else if (message->type == "information") {
-            logger("DEBUG") << "ServerRequestResponseHandler : Request message->type:" << message->type << "\n";
+            logger->log(LogLevel::Debug, __func__, "Request message->type: " + message->type);
             std::string json_str = R"({
                 "type": "information",
-                "transaction" : "0"
+                "transaction" : 0
             })";
             jv = json::parse(json_str);
         } else {
-            logger("WARN") << "ServerRequestResponseHandler : Request message->type:" << message->type << "\n";
+            logger->log(LogLevel::Warn, __func__, "Request message->type: " + message->type);
             return nullptr;
         }
-        logger("DEBUG") << "ServerRequestResponseHandler :  Create response Message"<< "\n";
-        auto new_message = creator_message->createMessage(message->type,jv);
+        logger->log(LogLevel::Debug, __func__, "Create response Message");
+        // Исправлено: добавлен Transaction::Request (или какой нужен)
+        auto new_message = creator_message->createMessage(message->type, Transaction::Request, jv);
         return new_message;
     } else if (message->transaction == Transaction::Response) {
         return message;
     }
-    logger("ERROR") << "ServerRequestResponseHandler : message->transactionType:" << static_cast<int>(message->transaction) << "\n";
+    logger->log(LogLevel::Error, __func__,
+                "Unexpected transaction: " + std::to_string(static_cast<int>(message->transaction)));
     return nullptr;
 }

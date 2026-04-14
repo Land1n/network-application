@@ -5,11 +5,11 @@
 #pragma once
 
 #include <memory>
-
 #include "TransportMessage.hpp"
 #include "Message.hpp"
 #include "CreatorMessage.hpp"
-#include "sdrlogger/sdrlogger.h"
+#include "Logger.hpp"
+#include "LoggerFactory.hpp"
 
 class MessageHandler {
 public:
@@ -19,5 +19,6 @@ public:
     TransportMessage serialize(std::unique_ptr<Message> message);
 
     std::shared_ptr<CreatorMessage> creator_message = std::make_shared<CreatorMessage>();
-    BaseLogger& logger = BaseLogger::get();
+private:
+    std::shared_ptr<Logger> logger;
 };

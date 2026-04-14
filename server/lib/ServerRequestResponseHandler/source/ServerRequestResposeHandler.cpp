@@ -1,14 +1,12 @@
-//
-// Created by ivan on 10.03.2026.
-//
 #include "ServerRequestResponseHandler.hpp"
+#include <boost/json.hpp>
+
+namespace json = boost::json;
 
 std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse(std::unique_ptr<Message> message) {
-    // TODO: пока я так и не понял что делать с сообшениями так пока будут отправлять статические данные
-    logger("DEBUG") << "ServerRequestResponseHandler [processingRequestResponse()] : message->transaction = " <<
-            static_cast<int>(message->transaction) << "\n";
-    logger("DEBUG") << "ServerRequestResponseHandler [processingRequestResponse()] : message->type = " << message->type
-            << "\n";
+    logger->log(LogLevel::Debug, __func__, 
+                "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
+    logger->log(LogLevel::Debug, __func__, "message->type = " + message->type);
 
     if (message->transaction == Transaction::Request) {
         std::string json_str;
@@ -34,8 +32,7 @@ std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse
             })";
         }
         jv = json::parse(json_str);
-        logger("DEBUG") << "ServerRequestResponseHandler [processingRequestResponse()] :  Create response Message" <<
-                "\n";
+        logger->log(LogLevel::Debug, __func__, "Create response Message");
         auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
         return new_message;
     } else if (message->transaction == Transaction::Response) {
