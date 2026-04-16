@@ -12,7 +12,6 @@ void signalHandler(int signum) {
     running = false;
 }
 int main() {
-    // Установка обработчиков сигналов для корректного завершения
 
     std::string address = "127.0.0.1";
     int port = 8080;
@@ -21,7 +20,6 @@ int main() {
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // Создание и настройка сервера
     SegmentServer server(address, port, debug);
 
     server.setNewConnectionHandler([](Network::ConnectionId id) {
@@ -42,16 +40,15 @@ int main() {
         std::cout << std::dec << std::endl;
     });
 
-    // Запуск сервера
+
     std::cout << "Starting server on " << address << ":" << port << std::endl;
     server.start();
 
-    // Ожидание сигнала остановки
+
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
-    // Остановка сервера
     std::cout << "Stopping server..." << std::endl;
     server.stop();
 

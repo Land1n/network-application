@@ -17,6 +17,9 @@ add_subdirectory(core/lib/RequestResponseHandler)
 add_subdirectory(server)
 add_subdirectory(client)
 add_subdirectory(clientserveriface)
+add_subdirectory(core/lib/Worker)
+
+
 file(GLOB_RECURSE TEST_SOURCES "core/lib/*/tests/*.cpp" "server/lib/*/tests/*.cpp")
 
 
@@ -32,6 +35,7 @@ target_link_libraries(all_tests PRIVATE
         Boost::thread
         Boost::json
         Boost::chrono
+        Worker
         Logger
         ConnectionHandler
         TransportHandler

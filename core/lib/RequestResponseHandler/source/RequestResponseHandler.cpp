@@ -6,6 +6,5 @@
 
 RequestResponseHandlerBase::RequestResponseHandlerBase(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG)
     : creator_message(creator_message) {
-    logger = LoggerFactory::getLogger("RequestResponseHandler");
-    if (!DEBUG) logger->setLevel(LogLevel::Error);
+    if (!DEBUG) logger.setLevel(LogLevel::Error);
 }

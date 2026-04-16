@@ -32,24 +32,13 @@ int main() {
         std::cout << "[Client] Connection closed" << std::endl;
     });
 
-    client.setReadHandler([](const void* data, size_t sz) {
-        const uint8_t* bytes = static_cast<const uint8_t*>(data);
-        std::cout << "[Client] Received " << sz << " bytes from server: ";
-        for (size_t i = 0; i < sz && i < 100; ++i) {
-            std::cout << std::hex << (int)bytes[i] << " ";
-        }
-        if (sz > 100) std::cout << "...";
-        std::cout << std::dec << std::endl;
-    });
-
     std::cout << "Connecting to " << serverAddress << ":" << serverPort << "..." << std::endl;
     client.connect();
 
-    // Отправляем тестовое сообщение через 1 секунду после подключения
     std::thread sender([&client]() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         if (running) {
-            const char* msg = "Hello from client!";
+            const char* msg = "Hello world!";
             client.write(msg, strlen(msg));
             std::cout << "[Client] Sent: " << msg << std::endl;
         }
@@ -58,7 +47,6 @@ int main() {
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-
     sender.join();
     client.disconnect();
     std::cout << "Client stopped." << std::endl;

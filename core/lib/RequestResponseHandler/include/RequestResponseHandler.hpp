@@ -8,7 +8,7 @@
 #include "Message.hpp"
 #include "CreatorMessage.hpp"
 #include "Logger.hpp"
-#include "LoggerFactory.hpp"
+#include "Logger.hpp"
 
 class RequestResponseHandlerBase {
 public:
@@ -16,5 +16,5 @@ public:
     virtual std::unique_ptr<Message> processingRequestResponse(std::unique_ptr<Message>) = 0;
 protected:
     std::shared_ptr<CreatorMessage> creator_message;
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();
 };

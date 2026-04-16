@@ -5,7 +5,7 @@
 
 #include "../../clientserveriface/include/clientserveriface/client.h"
 #include "ConnectionHandler.hpp"
-#include "LoggerFactory.hpp"
+#include "Logger.hpp"
 #include "MessageHandler.hpp"
 #include "TransportHandler.hpp"
 
@@ -17,12 +17,12 @@
 class SegmentClient : public Network::Client {
 public:
     SegmentClient(const std::string& serverAddress, int serverPort, bool debug = false);
-    ~SegmentClient();
+    ~SegmentClient() override;
 
-    void start() override;     // подготовка внутренних ресурсов (потоки не запускаются)
-    void stop() override;      // полная остановка, закрытие соединения
+    void start() override;
+    void stop() override;
 
-    void connect();   // установка соединения (вызывает start() если нужно)
+    void connect();
     void disconnect() override;
 
     void write(const void* data, size_t sz) override;
@@ -39,17 +39,11 @@ private:
     bool debug;
 
     std::shared_ptr<ConnectionHandler> connectionHandler;
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();
 
     ReadHandler readHandler;
     ConnChangeHandler closeHandler;
     ConnChangeHandler newHandler;
 
     std::mutex writeMutex;
-    std::atomic<bool> readThreadRunning{false};
-    std::thread readThread;
-
-    void runReadLoop();           // тело потока чтения
-    void startReadLoop();         // запускает поток, если не запущен
-    void stopReadLoop();          // останавливает поток
 };

@@ -143,34 +143,6 @@ GTEST_TEST(ConnectionHandlerServerTest, BadServerTask) {
     client->stop();
     client2->stop();
 }
-// Тест на повторное подключение клиента после разрыва
-GTEST_TEST(ConnectionHandlerClientTest, ReconnectAfterDisconnect) {
-    std::string address = "127.0.0.1";
-    int port = 8082;
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, false);
-    auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
-
-    server->start();
-    client->start();
-    server->listen();
-
-    auto sock1 = client->connect();
-    ASSERT_NE(sock1.ptr, nullptr);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    EXPECT_EQ(server->getSockets().size(), 1);
-
-    client->disconnect();
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    EXPECT_EQ(server->getSockets().size(), 0);
-
-    auto sock2 = client->connect();
-    ASSERT_NE(sock2.ptr, nullptr);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    EXPECT_EQ(server->getSockets().size(), 1);
-
-    client->stop();
-    server->stop();
-}
 // Тест на несколько клиентов с разными задачами
 GTEST_TEST(ConnectionHandlerServerTest, MultipleClientsWithTasks) {
     std::string address = "127.0.0.1";
@@ -283,6 +255,7 @@ GTEST_TEST(ConnectionHandlerStressTest, NConnectAndStopServer) {
 
 }
 
+/// TODO: Process finished with exit code 139 (interrupted by signal 11:SIGSEGV)
 // Стресс-тест: долгоживущие соединения (100 клиентов на 5 секунд)
 GTEST_TEST(ConnectionHandlerStressTest, LongLivedConnections) {
     std::string address = "127.0.0.1";

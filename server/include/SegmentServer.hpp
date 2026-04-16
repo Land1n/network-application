@@ -8,15 +8,15 @@
 #include "ConnectionHandler.hpp"
 #include "MessageHandler.hpp"
 #include "TransportHandler.hpp"
-#include "LoggerFactory.hpp"
+#include "Logger.hpp"
 
 #include <unordered_map>
 #include <mutex>
-
+// TODO: multiConnect
 class SegmentServer : public Network::Server {
 public:
     SegmentServer(const std::string& address, int port, bool debug = false);
-    ~SegmentServer();
+    ~SegmentServer() override;
 
     void start() override;
     void stop() override;
@@ -25,20 +25,13 @@ public:
     void setIdDistributionHandler(IdDistributionHandler h) override;
     void setCloseConnectionHandler(ConnChangeHandler h) override;
     void setNewConnectionHandler(ConnChangeHandler h) override;
-    void setReadHandler(ReadHandler h) override;
+    // void setReadHandler(ReadHandler h) override;
 
 private:
     const std::string address;
     const int port;
 
     std::shared_ptr<ConnectionHandler> connectionHandler;
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();
     std::shared_ptr<MessageHandler> messageHandler; // может пригодиться для других типов сообщений
-
-    ReadHandler readHandler;
-    ConnChangeHandler closeHandler;
-    ConnChangeHandler newHandler;
-
-    std::unordered_map<Network::ConnectionId, std::mutex> socketMutexes;
-    std::mutex socketMutexesMutex;
 };

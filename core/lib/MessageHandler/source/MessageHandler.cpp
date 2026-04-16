@@ -18,8 +18,7 @@ MessageHandler::MessageHandler(bool DEBUG) {
     creator_message->addMessageOnMap("information", [](const std::string& type, Transaction transaction, json::value& jv) {
         return std::make_unique<InformationMessage>(type, transaction, jv);
     });
-    logger = LoggerFactory::getLogger("MessageHandler");
-    if (!DEBUG) logger->setLevel(LogLevel::Error);
+    if (!DEBUG) logger.setLevel(LogLevel::Error);
 }
 
 std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport_message) {
@@ -27,13 +26,13 @@ std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport
     json::value jv;
     try {
         jv = boost::json::parse(sv);
-        logger->log(LogLevel::Debug, __func__, "Successful");
+        logger.log(LogLevel::Debug, __func__, "Successful");
     } catch (std::exception& e) {
-        logger->log(LogLevel::Error, __func__, std::string("Parse error: ") + e.what());
+        logger.log(LogLevel::Error, __func__, std::string("Parse error: ") + e.what());
         return nullptr;
     }
     auto message = creator_message->createMessage(transport_message.type, transport_message.transaction, jv);
-    logger->log(LogLevel::Debug, __func__, "Create Message");
+    logger.log(LogLevel::Debug, __func__, "Create Message");
     return message;
 }
 
@@ -46,7 +45,7 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
     else payload["transaction"] = -1;
 
     if (message->type == "signal" && message->transaction == Transaction::Response) {
-        logger->log(LogLevel::Debug, __func__, "Serialize SignalMessage");
+        logger.log(LogLevel::Debug, __func__, "Serialize SignalMessage");
         auto* signal_message = dynamic_cast<SignalMessage*>(message.get());
         if (!signal_message) return TransportMessage(message->type, message->transaction, {});
         payload["central_Freq"] = signal_message->getCentralFreq();
@@ -55,7 +54,7 @@ TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
             signal.push_back({c.real(), c.imag()});
         payload["signal"] = signal;
     } else if (message->type == "information" && message->transaction == Transaction::Response) {
-        logger->log(LogLevel::Debug, __func__, "Serialize InformationMessage");
+        logger.log(LogLevel::Debug, __func__, "Serialize InformationMessage");
         auto* info_message = dynamic_cast<InformationMessage*>(message.get());
         if (!info_message) return TransportMessage(message->type, message->transaction, {});
         payload["numberCore"] = info_message->getNumberCore();

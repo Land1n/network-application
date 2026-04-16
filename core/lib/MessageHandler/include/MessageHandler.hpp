@@ -9,7 +9,7 @@
 #include "Message.hpp"
 #include "CreatorMessage.hpp"
 #include "Logger.hpp"
-#include "LoggerFactory.hpp"
+#include "Logger.hpp"
 
 class MessageHandler {
 public:
@@ -20,5 +20,5 @@ public:
 
     std::shared_ptr<CreatorMessage> creator_message = std::make_shared<CreatorMessage>();
 private:
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();
 };

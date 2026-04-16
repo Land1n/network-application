@@ -4,21 +4,21 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "LogEvent.hpp"
-
+/// TODO: single-tone
 class Logger {
 public:
-    Logger(const std::string& name, LogLevel minLevel = LogLevel::Trace);
-    void log(LogLevel level, const std::string &func_name, const std::string &message);
+    static Logger& getInstance();
 
+    void log(LogLevel level, const std::string &func_name, const std::string &message);
     void setLevel(LogLevel level);
-    Logger(const Logger&) = delete;
-    Logger& operator=(const Logger&) = delete;
 private:
+    Logger(std::string name, LogLevel minLevel);
     std::string name_;
     std::atomic<LogLevel> minLevel_;
     std::mutex mutex_;

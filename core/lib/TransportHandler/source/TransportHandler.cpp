@@ -5,9 +5,8 @@
 
 TransportHandler::TransportHandler(std::shared_ptr<tcp::socket> socket, uint32_t magicNumber, bool DEBUG)
     : socket(std::move(socket)), magicNumber(magicNumber) {
-    logger = LoggerFactory::getLogger("TransportHandler");
-    if (DEBUG) logger->setLevel(LogLevel::Debug);
-    else       logger->setLevel(LogLevel::Error);
+    if (DEBUG) logger.setLevel(LogLevel::Debug);
+    else       logger.setLevel(LogLevel::Error);
 }
 
 TransportMessage TransportHandler::read() {
@@ -30,18 +29,20 @@ TransportMessage TransportHandler::read() {
         if (onReadHandler) onReadHandler(json_val);
         transport_message.type = json_val.at("type").as_string();
         transport_message.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
-        logger->log(LogLevel::Debug, __func__, "Read request TransportMessage");
+        logger.log(LogLevel::Info, __func__, "Read request TransportMessage");
     } catch (std::exception &e) {
         transport_message.type = "error";
         transport_message.transaction = Transaction::Error;
-        logger->log(LogLevel::Warn, __func__, "Read request TransportMessage invalid msg");
+        logger.log(LogLevel::Warn, __func__, "Read request TransportMessage invalid msg");
     }
-    logger->log(LogLevel::Debug, __func__, "Request TransportMessage.type: " + transport_message.type);
+    logger.log(LogLevel::Info, __func__, "Request TransportMessage.type: " + transport_message.type);
     return transport_message;
 }
 
 bool TransportHandler::write(TransportMessage &message) {
     uint32_t json_len = message.payload.size();
+    logger.log(LogLevel::Info, __func__, "Response TransportMessage.type: " + message.type);
+
     if (onWriteHandler) onWriteHandler(message.payload);
     std::vector<boost::asio::const_buffer> buffers;
     buffers.push_back(boost::asio::buffer(&magicNumber, 4));
@@ -49,8 +50,9 @@ bool TransportHandler::write(TransportMessage &message) {
     buffers.push_back(boost::asio::buffer(message.payload));
     boost::system::error_code error;
     boost::asio::write(*socket, buffers, error);
-    if (!error) logger->log(LogLevel::Debug, __func__, "Write response TransportMessage");
-    else        logger->log(LogLevel::Warn, __func__, "Write response TransportMessage failed");
+    if (!error) logger.log(LogLevel::Info, __func__, "Write response TransportMessage");
+    else        logger.log(LogLevel::Warn, __func__, "Write response TransportMessage failed");
+
     return !error;
 }
 

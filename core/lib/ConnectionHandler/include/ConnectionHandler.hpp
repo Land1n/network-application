@@ -8,7 +8,7 @@
 #include <boost/asio.hpp>
 #include "ConnectedSocket.hpp"
 #include "Logger.hpp"
-#include "LoggerFactory.hpp"
+#include "Logger.hpp"
 
 using tcp = boost::asio::ip::tcp;
 
@@ -41,7 +41,7 @@ public:
 
     // Геттеры
     std::vector<ConnectedSocket>& getSockets();
-    ConnectedSocket getSocket();
+    ConnectedSocket& getSocket();
     std::shared_ptr<tcp::acceptor> getAcceptor();
     bool getIsWork() const;
 
@@ -71,7 +71,7 @@ private:
     // Метод для проверки подключения ConnectedSocket
     Connection is_connected(ConnectedSocket sock);
 
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();;
     ConnectionHandlerType type;
 
     boost::asio::io_context io_context;

@@ -4,9 +4,9 @@
 namespace json = boost::json;
 
 std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse(std::unique_ptr<Message> message) {
-    logger->log(LogLevel::Debug, __func__, 
+    logger.log(LogLevel::Debug, __func__,
                 "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
-    logger->log(LogLevel::Debug, __func__, "message->type = " + message->type);
+    logger.log(LogLevel::Debug, __func__, "message->type = " + message->type);
 
     if (message->transaction == Transaction::Request) {
         std::string json_str;
@@ -32,7 +32,7 @@ std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse
             })";
         }
         jv = json::parse(json_str);
-        logger->log(LogLevel::Debug, __func__, "Create response Message");
+        logger.log(LogLevel::Debug, __func__, "Create response Message");
         auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
         return new_message;
     } else if (message->transaction == Transaction::Response) {

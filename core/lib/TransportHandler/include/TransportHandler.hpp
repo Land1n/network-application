@@ -7,7 +7,6 @@
 #include <boost/json.hpp>
 #include "TransportMessage.hpp"
 #include "Logger.hpp"
-#include "LoggerFactory.hpp"
 
 namespace json = boost::json;
 using tcp = boost::asio::ip::tcp;
@@ -23,7 +22,7 @@ public:
 private:
     uint32_t magicNumber;
     std::shared_ptr<tcp::socket> socket;
-    std::shared_ptr<Logger> logger;
+    Logger& logger = Logger::getInstance();
     std::function<void(json::value&)> onReadHandler;
     std::function<void(std::vector<uint8_t>&)> onWriteHandler;
 };
