@@ -42,6 +42,20 @@ std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse
         auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
         return new_message;
     } else if (message->transaction == Transaction::Response) {
+        std::string json_str;
+        json::value jv;
+
+        if (message->type == "raw") {
+            json_str = R"({
+                "type": "raw",
+                "transaction" : 1,
+                "data": [65, 99, 99, 101, 112, 116, 101, 100, 32, 109, 101, 115, 115, 97, 103, 101, 44, 32, 97, 108, 108, 32, 79, 75, 339]
+            })";
+            jv = json::parse(json_str);
+            auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
+            return new_message;
+        }
+
         return message;
     }
     return nullptr;

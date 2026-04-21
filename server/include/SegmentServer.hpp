@@ -35,9 +35,8 @@ private:
 
     // Обработчики
     std::unique_ptr<ConnectionHandler> connection_handler;
-    std::unique_ptr<TransportHandler> transport_handler;
     std::unique_ptr<MessageHandler> message_handler;
     std::unique_ptr<ServerRequestResponseHandler> request_response_handler;
 
-    Worker worker_task;
+    // Worker worker_task;
 };

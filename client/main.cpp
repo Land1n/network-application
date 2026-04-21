@@ -42,9 +42,9 @@ int main() {
     client.start();
     client.connect();
 
-    // const char* msg = "Hello Server!";
-    // client.write(msg, strlen(msg));
-    // std::cout << "[Client] Sent: " << msg << std::endl;
+    const char* msg = "Hello Server!";
+    client.write(msg, strlen(msg));
+    std::cout << "[Client] Sent: " << msg << std::endl;
 
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -52,5 +52,6 @@ int main() {
     }
 
     client.disconnect();
+    client.stop();
     return 0;
 }

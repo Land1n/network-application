@@ -14,7 +14,7 @@ Task::Task(std::function<void()> t) : task(t), status(StatusTask::Work) {
 /// flush - целиком отрабатывает очередь, потом join thread
 /// проверка - во время flush таски нельзя добавлять
 /// ? Чистить ли очередь после stop
-Worker::Worker(bool Trace) {
+Worker::Worker(unsigned short miliseconds,bool Trace) : timeer(miliseconds) {
     start();
     if (Trace == false) {
         logger.setLevel(LogLevel::Tests);
@@ -102,7 +102,7 @@ void Worker::addTask(std::shared_ptr<Task> task) {
 void Worker::runThreadTask() {
     while (status != StatusWorker::Stop) {
         std::unique_lock<std::mutex> lock(mutex_tasks_data);
-        bool success = cv_tasks_data.wait_for(lock, std::chrono::milliseconds(500), [this] {
+        bool success = cv_tasks_data.wait_for(lock, std::chrono::milliseconds(timeer), [this] {
             return !tasks.empty() || status == StatusWorker::Stop || status == StatusWorker::Flush;
         });
         if (!success) {

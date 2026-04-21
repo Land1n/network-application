@@ -173,26 +173,24 @@ SegmentServer::~SegmentServer() {
 
 void SegmentServer::start() {
     connection_handler->setTaskSocket([this](ConnectedSocket &socket) {
-        transport_handler = std::make_unique<TransportHandler>(socket.ptr);
-        if (readHandler) transport_handler->setOnReadHandler(readHandler);
-        logger.setLevel(LogLevel::Debug);
+        std::thread([this, socket]() {
+            TransportHandler transport(socket.ptr);
+            if (readHandler) transport.setOnReadHandler(readHandler);
+            logger.setLevel(LogLevel::Debug);
+            while (connection_handler->getIsWork()) {
+                TransportMessage req = transport.read();
+                if (req.transaction == Transaction::Error) break;
 
-        while (connection_handler->getIsWork()) {
-            if (worker_task.getSizeQueue() == 0)
-                worker_task.addTask([this]() {
-                    TransportMessage transport_message = transport_handler->read();
-                    if (transport_message.transaction != Transaction::Error) {
-                        auto message = message_handler->parse(transport_message);
-                        if (message != nullptr) {
-                            auto new_message = request_response_handler->processingRequestResponse(std::move(message));
-                            TransportMessage new_transport_message = message_handler->serialize(std::move(new_message));
-                            transport_handler->write(new_transport_message);
-                        } else logger.log(LogLevel::Error, __func__, "Failed to parse message");
-                    }
-                    std::this_thread::sleep_for(std::chrono::seconds(5));
-
-                });
-        }
+                auto msg = message_handler->parse(req);
+                if (msg) {
+                    auto resp = request_response_handler->processingRequestResponse(std::move(msg));
+                    TransportMessage resp_msg = message_handler->serialize(std::move(resp));
+                    if (!transport.write(resp_msg)) break;
+                }
+            }
+            ConnectedSocket s = socket;
+            connection_handler->disconnected(s, true);
+        }).detach();
     });
     connection_handler->start();
     connection_handler->listen();
@@ -221,12 +219,14 @@ void SegmentServer::write(Network::ConnectionId id, const void *data, size_t sz)
         return;
     }
 
-    // auto sock = connection_handler->findConnectedSocket(id);
-    // if (!sock.ptr) {
-    //     logger.log(LogLevel::Error, __func__, "Socket not found");
-    //     return;
-    // }
-    worker_task.addTask([this,&tm](){transport_handler->write(tm);});
+    auto sock = connection_handler->findConnectedSocket(id);
+    if (!sock.ptr) {
+        logger.log(LogLevel::Error, __func__, "Socket not found");
+        return;
+    }
+    TransportHandler transport_handler(sock.ptr);
+    transport_handler.setOnReadHandler(readHandler);
+    transport_handler.write(tm);
 }
 void SegmentServer::disconnect(Network::ConnectionId id) {
     auto sock = connection_handler->findConnectedSocket(id);

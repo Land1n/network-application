@@ -36,7 +36,7 @@ enum class StatusWorker {
 
 class Worker {
 public:
-    Worker(bool Trace = false);
+    Worker(unsigned short milliseconds = 500,bool Trace = false);
     Worker(std::queue<std::shared_ptr<Task>> q,bool Trace = false);
 
     ~Worker();
@@ -64,4 +64,5 @@ private:
     std::queue<std::shared_ptr<Task>> tasks;
     std::unique_ptr<std::thread> thread = nullptr;
     std::atomic<StatusWorker> status = StatusWorker::Stop;
+    unsigned short timeer;
 };

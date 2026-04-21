@@ -10,13 +10,15 @@ RawMessage::RawMessage(const std::string &type, Transaction transaction, const s
 
 
 RawMessage::RawMessage(const std::string &type, Transaction transaction, json::value &jv) : Message(type,transaction) {
-    try{
-        auto& dataArray = jv.at("data").as_array();
-        for (auto const& value : dataArray) {
-            if (!value.is_int64() && !value.is_uint64()) {
-                std::cerr << "Value is not integer, kind=" << value.kind() << ", value=" << json::serialize(value) << std::endl;
+    try {
+        if (transaction == Transaction::Response) {
+            auto& dataArray = jv.at("data").as_array();
+            for (auto const& value : dataArray) {
+                if (!value.is_int64() && !value.is_uint64()) {
+                    std::cerr << "Value is not integer, kind=" << value.kind() << ", value=" << json::serialize(value) << std::endl;
+                }
+                data_.push_back(static_cast<uint8_t>(value.as_int64()));
             }
-            data_.push_back(static_cast<uint8_t>(value.as_int64()));
         }
     } catch (const std::exception& e) {
         std::cerr << e.what() << std::endl;

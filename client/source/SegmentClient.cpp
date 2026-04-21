@@ -80,8 +80,7 @@ void SegmentClient::start() {
                         }
                     }
                 }
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-
+                std::this_thread::sleep_for(std::chrono::seconds(2));
             });
         }
     });
@@ -91,6 +90,7 @@ void SegmentClient::stop() {
     logger.log(LogLevel::Info, "stop", "Stopping client...");
     disconnect();
     connection_handler->stop();
+    worker_task.stop(true);
     logger.log(LogLevel::Info, "stop", "Client stopped");
 }
 
@@ -123,12 +123,25 @@ void SegmentClient::write(const void *data, size_t sz) {
 
     const uint8_t *bytes = static_cast<const uint8_t *>(data);
     std::vector<uint8_t> payload(bytes, bytes + sz);
-    auto raw_msg = std::make_unique<RawMessage>("raw", Transaction::Request, payload);
 
     worker_task.addTask([this,payload]() {
-        auto raw_msg = std::make_unique<RawMessage>("raw", Transaction::Request, payload);
+        auto raw_msg = std::make_unique<RawMessage>("raw", Transaction::Response, payload);
+        logger.log(LogLevel::Info, "User task", "Sending raw message");
         TransportMessage transport_message = message_handler->serialize(std::move(raw_msg));
         transport_handler->write(transport_message);
+        TransportMessage new_transport_message = transport_handler->read();
+        if (new_transport_message.transaction != Transaction::Error) {
+            auto new_message = message_handler->parse(new_transport_message);
+            if (new_message) {
+                if (new_message->type == "raw") {
+                    auto *new_message_raw = dynamic_cast<RawMessage *>(new_message.get());
+                    if (new_message_raw != nullptr) {
+                        logger.log(LogLevel::Info, "User task","Raw received");
+                        std::cout << reinterpret_cast<const char *>(new_message_raw->getData().data()) << std::endl;
+                    }
+                }
+            }
+        }
     });
 }
 
