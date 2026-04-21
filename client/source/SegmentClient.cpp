@@ -145,6 +145,6 @@ void SegmentClient::write(const void *data, size_t sz) {
     });
 }
 
-bool SegmentClient::isRunning() {
+bool SegmentClient::isRunning() const {
     return connection_handler->getIsWork();
 }

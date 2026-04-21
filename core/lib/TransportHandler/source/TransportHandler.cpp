@@ -67,10 +67,13 @@ bool TransportHandler::write(TransportMessage &message) {
     buffers.push_back(boost::asio::buffer(&json_len, 4));
     buffers.push_back(boost::asio::buffer(message.payload));
     boost::system::error_code error;
-    boost::asio::write(*socket, buffers, error);
-    if (!error) logger.log(LogLevel::Info, __func__, "Write response TransportMessage");
-    else logger.log(LogLevel::Warn, __func__, "Write response TransportMessage failed");
-
+    try {
+        boost::asio::write(*socket, buffers, error);
+        if (!error) logger.log(LogLevel::Info, __func__, "Write response TransportMessage");
+        else logger.log(LogLevel::Warn, __func__, "Write response TransportMessage failed");
+    } catch (const std::exception &e) {
+        logger.log(LogLevel::Critical, __func__, e.what());
+    }
     return !error;
 }
 

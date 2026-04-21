@@ -28,7 +28,7 @@ public:
 
     void write(const void* data, size_t sz) override;
 
-    bool isRunning();
+    bool isRunning() const;
 
 private:
     std::string address;

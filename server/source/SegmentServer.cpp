@@ -158,9 +158,10 @@
 // // }
 
 
-SegmentServer::SegmentServer(const std::string &address, int port, bool debug) : address(address), port(port) {
+SegmentServer::SegmentServer(const std::string &address, int port, bool multiConnect, bool debug) : address(address),
+    port(port), multiConnect(multiConnect) {
     connection_handler = std::make_unique<ConnectionHandler>(
-        address, port, ConnectionHandlerType::Server,true
+        address, port, ConnectionHandlerType::Server, true
     );
     message_handler = std::make_unique<MessageHandler>();
     request_response_handler = std::make_unique<ServerRequestResponseHandler>(message_handler->creator_message);
@@ -192,6 +193,14 @@ void SegmentServer::start() {
             connection_handler->disconnected(s, true);
         }).detach();
     });
+    std::thread([this]() {
+        if (!multiConnect)
+            while (connection_handler->getIsWork()) {
+                if (connection_handler && connection_handler->getSockets().size() > 1) {
+                    connection_handler->disconnected(*(connection_handler->getSockets().end() - 1),true);
+                }
+            }
+    }).detach();
     connection_handler->start();
     connection_handler->listen();
 }
@@ -228,6 +237,7 @@ void SegmentServer::write(Network::ConnectionId id, const void *data, size_t sz)
     transport_handler.setOnReadHandler(readHandler);
     transport_handler.write(tm);
 }
+
 void SegmentServer::disconnect(Network::ConnectionId id) {
     auto sock = connection_handler->findConnectedSocket(id);
     if (sock.ptr) {

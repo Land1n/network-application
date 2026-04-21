@@ -13,10 +13,10 @@
 
 #include <unordered_map>
 #include <mutex>
-// TODO: multiConnect
+// + TODO: multiConnect
 class SegmentServer : public Network::Server {
 public:
-    SegmentServer(const std::string& address, int port, bool debug = false);
+    SegmentServer(const std::string& address, int port,bool multiConnect = true, bool debug = false);
     ~SegmentServer() override;
 
     void start() override;
@@ -38,5 +38,5 @@ private:
     std::unique_ptr<MessageHandler> message_handler;
     std::unique_ptr<ServerRequestResponseHandler> request_response_handler;
 
-    // Worker worker_task;
+    bool multiConnect;
 };

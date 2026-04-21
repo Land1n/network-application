@@ -112,8 +112,8 @@ GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
     std::string address = "127.0.0.1";
     const int port = 8093;
 
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, false);
-    auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
+    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, true);
+    auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, true);
 
     server->start();
     client->start();
@@ -125,7 +125,8 @@ GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
         TransportHandler transport(cs.ptr);
         read_started.set_value();
         TransportMessage msg = transport.read();
-        EXPECT_TRUE(msg.type.empty());
+        EXPECT_EQ(msg.type, "error");
+        EXPECT_EQ(msg.transaction, Transaction::Error);
     });
     server->listen();
 
@@ -151,7 +152,7 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
     const int num_clients = 10;
     const int messages_per_client = 10;
 
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server,false);
+    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server,true);
     server->start();
 
     std::atomic<int> server_handlers_active{0};
@@ -160,11 +161,11 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
 
     server->setTaskSocket([&](ConnectedSocket& cs) {
         server_handlers_active++;
-        TransportHandler transport(cs.ptr, 0xA0ABA0A, false);
+        TransportHandler transport(cs.ptr, 0xA0ABA0A, true);
         try {
             while (true) {
                 TransportMessage req = transport.read();
-                if (req.type.empty()) break;
+                if (req.transaction == Transaction::Error) break;
 
                 if (req.type == "ping") {
                     std::string json_str(req.payload.begin(), req.payload.end());
@@ -203,7 +204,7 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
 
 
     for (int i = 0; i < num_clients; ++i) {
-        auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client,false);
+        auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client,true);
         client->start();
 
         client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](ConnectedSocket& cs) {
@@ -248,7 +249,7 @@ GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
 
     {
         std::unique_lock<std::mutex> lock(server_handlers_mutex);
-        bool all_handlers_done = server_handlers_cv.wait_for(lock, std::chrono::seconds(10),
+        bool all_handlers_done = server_handlers_cv.wait_for(lock, std::chrono::seconds(3),
             [&]() { return server_handlers_active.load() == 0; });
         EXPECT_TRUE(all_handlers_done) << "Server handlers did not finish";
     }
