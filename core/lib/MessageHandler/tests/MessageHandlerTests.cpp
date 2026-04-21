@@ -115,12 +115,14 @@ TEST(MessageHandlerTests, SerializeUnsupportedTypeReturnsOnlyType) {
     MessageHandler handler;
     class UnknownMessage : public Message {
     public:
-        UnknownMessage() : Message("unknown", Transaction::Tests) { }
+        UnknownMessage() : Message("unknown", Transaction::Tests) {}
     };
     auto message = std::make_unique<UnknownMessage>();
     std::string json_str = R"({"type":"unknown","transaction":-1})";
     std::vector<uint8_t> payload(json_str.begin(), json_str.end());
     TransportMessage transport = handler.serialize(std::move(message));
+    std::cout << json_str << std::endl;
+
     EXPECT_EQ(transport.type, "unknown");
     EXPECT_EQ(transport.transaction, Transaction::Tests);
     EXPECT_EQ(transport.payload.size(), payload.size());

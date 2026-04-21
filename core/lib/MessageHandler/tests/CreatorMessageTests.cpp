@@ -9,6 +9,7 @@
 class MessageTest : public Message {
 public:
     MessageTest(const std::string &type, Transaction transaction, json::value &jv) : Message(type, transaction) {}
+    json::object serialize() {return json::object();}
 };
 
 GTEST_TEST(CreatorMessageTests, CreateValidMessage) {

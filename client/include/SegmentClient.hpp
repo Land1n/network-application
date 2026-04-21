@@ -8,6 +8,7 @@
 #include "Logger.hpp"
 #include "MessageHandler.hpp"
 #include "TransportHandler.hpp"
+#include "ClientRequestResponseHandler.hpp"
 
 #include <mutex>
 #include <memory>
@@ -16,7 +17,7 @@
 
 class SegmentClient : public Network::Client {
 public:
-    SegmentClient(const std::string& serverAddress, int serverPort, bool debug = false);
+    SegmentClient(const std::string& address, int port, bool debug = false);
     ~SegmentClient() override;
 
     void start() override;
@@ -27,23 +28,19 @@ public:
 
     void write(const void* data, size_t sz) override;
 
-    void setCloseConnectionHandler(ConnChangeHandler h) override;
-    void setNewConnectionHandler(ConnChangeHandler h) override;
-    void setReadHandler(ReadHandler h) override;
-
-    bool isRunning() const { return connectionHandler && connectionHandler->getIsWork(); }
+    bool isRunning();
 
 private:
-    std::string serverAddress;
-    int serverPort;
+    std::string address;
+    int port;
     bool debug;
 
-    std::shared_ptr<ConnectionHandler> connectionHandler;
+    // Обработчики
+    std::unique_ptr<ConnectionHandler> connection_handler;
+    std::unique_ptr<TransportHandler> transport_handler;
+    std::unique_ptr<MessageHandler> message_handler;
+    std::unique_ptr<ClientRequestResponseHandler> request_response_handler;
+
     Logger& logger = Logger::getInstance();
-
-    ReadHandler readHandler;
-    ConnChangeHandler closeHandler;
-    ConnChangeHandler newHandler;
-
-    std::mutex writeMutex;
+    Worker worker_task;
 };

@@ -10,7 +10,7 @@ Logger::Logger(std::string name, LogLevel minLevel)
     : name_(std::move(name)), minLevel_(minLevel) {}
 
 void Logger::log(LogLevel level, const std::string& func_name, const std::string& message) {
-    if (static_cast<int>(level) >= static_cast<int>(minLevel_.load())) {
+    if (static_cast<int>(level) <= static_cast<int>(minLevel_.load())) {
         std::lock_guard<std::mutex> lock(mutex_);
         std::cout << LogEvent(level, name_, func_name, message) << std::endl;
     }

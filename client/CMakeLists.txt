@@ -7,6 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Boost REQUIRED COMPONENTS system)
 
 file(GLOB SOURCES "source/*.cpp")
+
+add_subdirectory(lib/ClientRequestResponseHandler)
+
 add_library(SegmentClientCore SHARED ${SOURCES})
 
 target_include_directories(SegmentClientCore PUBLIC include)
@@ -17,6 +20,7 @@ target_link_libraries(SegmentClientCore PUBLIC
         ConnectionHandler
         MessageHandler
         TransportHandler
+        ClientRequestResponseHandler
         Logger
 )
 

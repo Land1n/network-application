@@ -3,14 +3,22 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <random>
 
-SegmentClient::SegmentClient(const std::string& serverAddress, int serverPort, bool debug)
-    : serverAddress(serverAddress), serverPort(serverPort), debug(debug)
-{
-    connectionHandler = std::make_shared<ConnectionHandler>(
-        serverAddress, serverPort, ConnectionHandlerType::Client, !debug
+#include "InformationMessage.hpp"
+#include "RawMessage.hpp"
+#include "SignalMessage.hpp"
+#include "../lib/ClientRequestResponseHandler/include/ClientRequestResponseHandler.hpp"
+
+
+SegmentClient::SegmentClient(const std::string &serverAddress, int port, bool debug)
+    : address(serverAddress), port(port), debug(debug) {
+    connection_handler = std::make_unique<ConnectionHandler>(
+        address, port, ConnectionHandlerType::Client, true
     );
-    logger.setLevel(debug ? LogLevel::Debug : LogLevel::Info);
+    message_handler = std::make_unique<MessageHandler>();
+    request_response_handler = std::make_unique<ClientRequestResponseHandler>(message_handler->creator_message);
+    logger.setLevel(LogLevel::Debug);
 }
 
 SegmentClient::~SegmentClient() {
@@ -18,26 +26,78 @@ SegmentClient::~SegmentClient() {
 }
 
 void SegmentClient::start() {
-    if (!connectionHandler->getIsWork()) {
-        connectionHandler->start();
-        logger.log(LogLevel::Info, "start", "Client handler started");
-    }
+    connection_handler->start();
+
+    connection_handler->setTaskSocket([this](ConnectedSocket &cs) {
+        transport_handler = std::make_unique<TransportHandler>(cs.ptr);
+        transport_handler->setOnReadHandler([this ](size_t id, const void *data, size_t data_sz) {
+            if (readHandler) readHandler(data, data_sz);
+        });
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(1, 3);
+        while (connection_handler->getIsWork()) {
+            if (worker_task.getSizeQueue() == 0)
+            worker_task.addTask([this,&dist,&gen]() {
+                std::string new_message_type;
+                int val = dist(gen);
+                if (val == 1) new_message_type = "signal";
+                else if (val == 2) new_message_type = "information";
+                else if (val == 3) new_message_type = "raw";
+                auto transport_message = message_handler->serialize(
+                    std::make_unique<Message>(new_message_type, Transaction::Request)
+                );
+                logger.log(LogLevel::Info, "Auto task", "Generation message type: " + new_message_type);
+                if (transport_handler->write(transport_message)) {
+                    TransportMessage new_transport_message = transport_handler->read();
+                    if (new_transport_message.transaction != Transaction::Error) {
+                        auto new_message = message_handler->parse(new_transport_message);
+                        if (new_message) {
+                            if (new_message->type == "signal") {
+                                auto *new_message_signal = dynamic_cast<SignalMessage *>(new_message.get());
+                                if (new_message_signal != nullptr) {
+                                    logger.log(LogLevel::Info, "Auto task","Signal received");
+                                    for (const auto &sample: new_message_signal->getSignal()) {
+                                        std::cout << sample << " ";
+                                    }
+                                    std::cout << std::endl;
+                                }
+                            } else if (new_message->type == "information") {
+                                auto *new_message_information = dynamic_cast<InformationMessage *>(new_message.get());
+                                if (new_message_information != nullptr) {
+                                    logger.log(LogLevel::Info, "Auto task","Information received");
+                                    std::cout << new_message_information->getNumberCore() << std::endl;
+                                }
+                            } else if (new_message->type == "raw") {
+                                auto *new_message_raw = dynamic_cast<RawMessage *>(new_message.get());
+                                if (new_message_raw != nullptr) {
+                                    logger.log(LogLevel::Info, "Auto task","Raw received");
+                                    std::cout << reinterpret_cast<const char *>(new_message_raw->getData().data()) << std::endl;
+                                }
+                            } else {
+                                logger.log(LogLevel::Error, "Auto task", "Unknown message type");
+                            }
+                        }
+                    }
+                }
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+
+            });
+        }
+    });
 }
 
 void SegmentClient::stop() {
     logger.log(LogLevel::Info, "stop", "Stopping client...");
     disconnect();
-    connectionHandler->stop();
+    connection_handler->stop();
     logger.log(LogLevel::Info, "stop", "Client stopped");
 }
 
 void SegmentClient::connect() {
-    if (!connectionHandler->getIsWork()) {
-        start();
-    }
-    auto sock = connectionHandler->connect();
+    auto sock = connection_handler->connect();
     if (sock.ptr) {
-        logger.log(LogLevel::Info, "connect", "Connected to " + serverAddress + ":" + std::to_string(serverPort));
+        logger.log(LogLevel::Info, "connect", "Connected to " + address + ":" + std::to_string(port));
         if (newHandler) newHandler();
     } else {
         logger.log(LogLevel::Error, "connect", "Connection failed");
@@ -45,58 +105,33 @@ void SegmentClient::connect() {
 }
 
 void SegmentClient::disconnect() {
-    if (connectionHandler->getIsWork()) {
-        connectionHandler->disconnect(true);
+    if (connection_handler->getIsWork()) {
+        connection_handler->disconnect(true);
         if (closeHandler) closeHandler();
         logger.log(LogLevel::Info, "disconnect", "Disconnected");
     }
 }
 
-void SegmentClient::write(const void* data, size_t sz) {
-    auto sock = connectionHandler->getSocket();
-    std::cout << !sock.ptr->is_open() << std::endl;
+void SegmentClient::write(const void *data, size_t sz) {
+    auto sock = connection_handler->getSocket();
     if (!sock.ptr || !sock.ptr->is_open()) {
-        logger.log(LogLevel::Warn, "write", "Socket not open");
+        logger.log(LogLevel::Critical, __func__, "Write fail");
+        logger.log(LogLevel::Critical, __func__,
+                   "connection_handler->getIsWork() = " + std::to_string(connection_handler->getIsWork()));
         return;
     }
 
-    const uint8_t* bytes = static_cast<const uint8_t*>(data);
-    boost::json::array arr;
-    arr.reserve(sz);
-    for (size_t i = 0; i < sz; ++i) {
-        arr.push_back(bytes[i]);
-    }
+    const uint8_t *bytes = static_cast<const uint8_t *>(data);
+    std::vector<uint8_t> payload(bytes, bytes + sz);
+    auto raw_msg = std::make_unique<RawMessage>("raw", Transaction::Request, payload);
 
-    boost::json::object obj;
-    obj["type"] = "raw";
-    obj["transaction"] = static_cast<int>(Transaction::Request);
-    obj["data"] = std::move(arr);
-
-    std::string jsonStr = boost::json::serialize(obj);
-    std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
-    TransportMessage tm("raw", Transaction::Request, payload);
-
-    std::lock_guard<std::mutex> lock(writeMutex);
-    TransportHandler transport(sock.ptr);
-    if (!transport.write(tm)) {
-        logger.log(LogLevel::Error, "write", "Failed to send data");
-    }
-}
-
-void SegmentClient::setCloseConnectionHandler(ConnChangeHandler h) {
-    closeHandler = std::move(h);
-    connectionHandler->setCloseConnectionHandler([this](ConnectedSocket) {
-        if (closeHandler) closeHandler();
+    worker_task.addTask([this,payload]() {
+        auto raw_msg = std::make_unique<RawMessage>("raw", Transaction::Request, payload);
+        TransportMessage transport_message = message_handler->serialize(std::move(raw_msg));
+        transport_handler->write(transport_message);
     });
 }
 
-void SegmentClient::setNewConnectionHandler(ConnChangeHandler h) {
-    newHandler = std::move(h);
-    connectionHandler->setNewConnectionHandler([this](ConnectedSocket) {
-        if (newHandler) newHandler();
-    });
-}
-
-void SegmentClient::setReadHandler(ReadHandler h) {
-    readHandler = std::move(h);
+bool SegmentClient::isRunning() {
+    return connection_handler->getIsWork();
 }

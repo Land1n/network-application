@@ -17,3 +17,17 @@ InformationMessage::InformationMessage(const std::string &type, Transaction tran
     if (transaction == Transaction::Response)
         this->_numberCore = jv.at("numberCore").as_int64();
 }
+
+json::object InformationMessage::serialize() {
+    json::object payload = json::object();
+    payload["type"] = this->type;
+
+    if (transaction == Transaction::Request) payload["transaction"] = 0;
+    else if (transaction == Transaction::Response) payload["transaction"] = 1;
+    else payload["transaction"] = -1;
+
+    if (transaction == Transaction::Response)
+        payload["numberCore"] = this->_numberCore;
+
+    return payload;
+}

@@ -4,8 +4,16 @@
 // #include "Worker.hpp"
 #include "../include/Worker.hpp"
 
-#include <boost/asio/detail/mutex.hpp>
+#include <iostream>
 
+Task::Task(std::function<void()> t) : task(t), status(StatusTask::Work) {
+}
+
+/// + TODO: stop vs flush
+/// stop - стопит и не дожидается выполнения ВСЕХ задач в очереди
+/// flush - целиком отрабатывает очередь, потом join thread
+/// проверка - во время flush таски нельзя добавлять
+/// ? Чистить ли очередь после stop
 Worker::Worker(bool Trace) {
     start();
     if (Trace == false) {
@@ -13,25 +21,34 @@ Worker::Worker(bool Trace) {
     }
 }
 
+Worker::Worker(std::queue<std::shared_ptr<Task> > q, bool Trace) {
+    tasks = q;
+    start();
+    if (Trace == false) {
+        logger.setLevel(LogLevel::Tests);
+    }
+}
+
 Worker::~Worker() {
-    stop();
+    stop(true);
 }
 
 void Worker::start() {
     if (status == StatusWorker::Stop) {
-        status = StatusWorker::Wait;
         logger.log(LogLevel::Trace, __func__, "Starting worker");
+        changeStatusWorker(StatusWorker::Wait);
         thread = std::make_unique<std::thread>([this]() {
             this->runThreadTask();
         });
     }
 }
 
-void Worker::stop() {
+void Worker::stop(bool clearQueue) {
     {
         std::lock_guard<std::mutex> lock(mutex_tasks_data);
+        if (clearQueue) tasks = std::queue<std::shared_ptr<Task> >();
         if (status == StatusWorker::Stop) return;
-        status = StatusWorker::Stop;
+        changeStatusWorker(StatusWorker::Stop);
     }
     cv_tasks_data.notify_all();
 
@@ -39,6 +56,24 @@ void Worker::stop() {
         thread->join();
 
     logger.log(LogLevel::Trace, __func__, "Stopping worker");
+}
+
+void Worker::flush() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_tasks_data);
+        if (status == StatusWorker::Flush) return;
+        changeStatusWorker(StatusWorker::Flush);
+    }
+    cv_tasks_data.notify_all();
+    {
+        std::unique_lock<std::mutex> lock(mutex_tasks_data);
+        cv_tasks_data.wait(lock, [this] { return tasks.empty(); });
+    }
+    // Дожидаемся, пока поток обработает все задачи и завершится
+    if (thread && thread->joinable())
+        thread->join();
+
+    logger.log(LogLevel::Trace, __func__, "Flushing worker completed");
 }
 
 StatusWorker const Worker::getStatusWorker() {
@@ -57,7 +92,7 @@ void Worker::addTask(std::function<void()> f) {
 
 void Worker::addTask(std::shared_ptr<Task> task) {
     std::lock_guard<std::mutex> lock(mutex_tasks_data);
-    if (status == StatusWorker::Stop) {
+    if (status == StatusWorker::Stop || status == StatusWorker::Flush) {
         return;
     }
     tasks.push(task);
@@ -67,20 +102,22 @@ void Worker::addTask(std::shared_ptr<Task> task) {
 void Worker::runThreadTask() {
     while (status != StatusWorker::Stop) {
         std::unique_lock<std::mutex> lock(mutex_tasks_data);
-        bool success = cv_tasks_data.wait_for(lock, std::chrono::milliseconds(200), [this] {
-            return !tasks.empty() || status == StatusWorker::Stop;
+        bool success = cv_tasks_data.wait_for(lock, std::chrono::milliseconds(500), [this] {
+            return !tasks.empty() || status == StatusWorker::Stop || status == StatusWorker::Flush;
         });
         if (!success) {
-            break;
+            logger.log(LogLevel::Trace, __func__, "Timeer wait_for");
+            logger.log(LogLevel::Trace, __func__, std::to_string(tasks.size()));
+            continue;
         }
-        if (status == StatusWorker::Stop && tasks.empty()) {
-            break;
-        }
-        if (!tasks.empty())
-            status = StatusWorker::Work;
+
+        if (status == StatusWorker::Stop) break;
+        else if (status == StatusWorker::Flush && tasks.empty()) break;
+
+        if (!tasks.empty() && status != StatusWorker::Flush) changeStatusWorker(StatusWorker::Work);
+
         auto task = tasks.front();
         try {
-            logger.log(LogLevel::Trace, __func__, "Status task = " + std::to_string(static_cast<int>(task->status)));
             task->task();
             task->status = StatusTask::Success;
         } catch (const std::exception &e) {
@@ -88,9 +125,26 @@ void Worker::runThreadTask() {
             break;
         }
         tasks.pop();
-        lock.unlock();
-        logger.log(LogLevel::Trace, __func__, "Status task = " + std::to_string(static_cast<int>(task->status)));
-        if (tasks.empty())
-            status = StatusWorker::Wait;
+        if (tasks.empty()) {
+            if (status != StatusWorker::Flush)
+                changeStatusWorker(StatusWorker::Wait);
+            cv_tasks_data.notify_all();
+        }
+    }
+}
+
+void Worker::changeStatusWorker(const StatusWorker s) {
+    if (status != s) {
+        status = s;
+        switch (s) {
+            case StatusWorker::Wait: logger.log(LogLevel::Trace, __func__, "StatusWorker = Wait");
+                break;
+            case StatusWorker::Work: logger.log(LogLevel::Trace, __func__, "StatusWorker = Work");
+                break;
+            case StatusWorker::Stop: logger.log(LogLevel::Trace, __func__, "StatusWorker = Stop");
+                break;
+            case StatusWorker::Flush: logger.log(LogLevel::Trace, __func__, "StatusWorker = Flush");
+                break;
+        }
     }
 }

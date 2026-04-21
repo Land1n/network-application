@@ -1,23 +1,15 @@
 find_package(GTest REQUIRED)
 
-project(WorkerTests)
-
+project(LoggerTests)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -g")
 file(GLOB SOURCES "*.cpp")
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-find_package(GTest REQUIRED)
-
 target_link_libraries(${PROJECT_NAME} PRIVATE
         GTest::gtest
         GTest::gtest_main
-        Worker
         Logger
 )
 
-add_executable(tests main.cpp WorkerTests.cpp)
-
 enable_testing()
-
-include(GoogleTest)
-gtest_discover_tests(tests)

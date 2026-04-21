@@ -7,7 +7,7 @@
 
 #include "clientserveriface/connectionid.h"
 
-static std::atomic<bool> running{true};
+std::atomic<bool> running{true};
 
 void signalHandler(int signum) {
     std::cout << "\nInterrupt signal (" << signum << ") received. Shutting down...\n";
@@ -24,31 +24,33 @@ int main() {
 
     SegmentClient client(serverAddress, serverPort, debug);
 
-    client.setNewConnectionHandler([]() {
-        std::cout << "[Client] Connected to server" << std::endl;
-    });
+    // client.setNewConnectionHandler([]() {
+    //     std::cout << "[Client] Connected to server" << std::endl;
+    // });
+    //
+    // client.setCloseConnectionHandler([]() {
+    //     std::cout << "[Client] Connection closed" << std::endl;
+    // });
+    client.setReadHandler([](const void* data,size_t sz) {
+        const unsigned char *bytes = (const unsigned char *) data;
+        for (int i = 0; i < sz; i++) {
+            std::cout << bytes[i];
+        }
+        std::cout << std::endl;
 
-    client.setCloseConnectionHandler([]() {
-        std::cout << "[Client] Connection closed" << std::endl;
     });
-
-    std::cout << "Connecting to " << serverAddress << ":" << serverPort << "..." << std::endl;
+    client.start();
     client.connect();
 
-    std::thread sender([&client]() {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        if (running) {
-            const char* msg = "Hello world!";
-            client.write(msg, strlen(msg));
-            std::cout << "[Client] Sent: " << msg << std::endl;
-        }
-    });
+    // const char* msg = "Hello Server!";
+    // client.write(msg, strlen(msg));
+    // std::cout << "[Client] Sent: " << msg << std::endl;
 
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (!client.isRunning()) break;
     }
-    sender.join();
+
     client.disconnect();
-    std::cout << "Client stopped." << std::endl;
     return 0;
 }

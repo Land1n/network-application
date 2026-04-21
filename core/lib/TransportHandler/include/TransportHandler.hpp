@@ -17,12 +17,12 @@ public:
     TransportMessage read();
     bool write(TransportMessage &message);
 
-    void setOnReadHandler(std::function<void(json::value&)> handler);
+    void setOnReadHandler(std::function<void(size_t id,const void *, size_t)> handler);
     void setOnWriteHandler(std::function<void(std::vector<uint8_t>&)> handler);
 private:
     uint32_t magicNumber;
     std::shared_ptr<tcp::socket> socket;
     Logger& logger = Logger::getInstance();
-    std::function<void(json::value&)> onReadHandler;
+    std::function<void(size_t,const void*, size_t)> onReadHandler;
     std::function<void(std::vector<uint8_t>&)> onWriteHandler;
 };

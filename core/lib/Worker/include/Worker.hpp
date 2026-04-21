@@ -2,6 +2,7 @@
 // Created by ivan on 16.04.2026.
 //
 #pragma once
+#include <any>
 #include <queue>
 #include <functional>
 #include <memory>
@@ -10,6 +11,7 @@
 #include <future>
 
 #include <condition_variable>
+#include <optional>
 
 #include "../../Logger/include/Logger.hpp"
 
@@ -22,33 +24,37 @@ enum class StatusTask {
 struct Task {
     std::function<void()> task;
     StatusTask status;
-    Task(std::function<void()> t) : task(t), status(StatusTask::Work) {}
+    Task(std::function<void()> t);
 };
 
 enum class StatusWorker {
     Wait = 0,
     Work = 1,
-    Stop = 2
+    Flush = 2,
+    Stop = 3
 };
 
 class Worker {
 public:
     Worker(bool Trace = false);
+    Worker(std::queue<std::shared_ptr<Task>> q,bool Trace = false);
 
     ~Worker();
-    void addTask(std::shared_ptr<Task> task);
 
     void start();
-    void stop();
+    void stop(bool clearQueue = false);
+
+    void flush();
 
     StatusWorker const getStatusWorker();
-
     size_t const getSizeQueue();
 
+    void addTask(std::shared_ptr<Task> task);
     void addTask(std::function<void()> f);
 
 private:
     void runThreadTask();
+    void changeStatusWorker(StatusWorker s);
 
     std::mutex mutex_tasks_data;
     std::condition_variable cv_tasks_data;

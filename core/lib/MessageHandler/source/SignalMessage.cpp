@@ -35,3 +35,22 @@ int SignalMessage::getCentralFreq() {
 std::vector<std::complex<float>> SignalMessage::getSignal() {
     return _signal;
 }
+
+json::object SignalMessage::serialize() {
+    json::object payload;
+    payload["type"] = type;
+
+    if (transaction == Transaction::Request) payload["transaction"] = 0;
+    else if (transaction == Transaction::Response) payload["transaction"] = 1;
+    else payload["transaction"] = -1;
+
+    payload["central_Freq"] = _central_Freq;
+    if (transaction == Transaction::Response) {
+        json::array signal;
+        for (auto const& c : _signal) {
+                signal.push_back({c.real(), c.imag()});
+        }
+        payload["signal"] = signal;
+    }
+    return payload;
+}
