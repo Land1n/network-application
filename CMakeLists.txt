@@ -26,6 +26,8 @@ file(GLOB_RECURSE TEST_SOURCES
         "server/tests/*.cpp"
         "client/tests/*.cpp"
 )
+list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+
 
 add_executable(all_tests ${TEST_SOURCES})
 

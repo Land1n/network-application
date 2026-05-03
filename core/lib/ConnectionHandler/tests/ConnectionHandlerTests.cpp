@@ -230,7 +230,6 @@ TEST_F(ConnectionHandlerTests, NConnectAndStopServer) {
     }
 }
 
-/// + TODO: Process finished with exit code 139 (interrupted by signal 11:SIGSEGV)
 // Стресс-тест: долгоживущие соединения (100 клиентов на 5 секунд)
 TEST_F(ConnectionHandlerTests, LongLivedConnections) {
     const int num_clients = 100;

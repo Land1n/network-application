@@ -13,6 +13,7 @@ enum LogLevel {
     Warn = 2,
     Info = 1,
     Tests = 0,
+    NoLog = -1
 };
 
 class LogEvent {

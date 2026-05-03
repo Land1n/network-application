@@ -1,7 +1,0 @@
-@startuml
-class "SegmentServer : public Network::Server" {
-    start() override { ConnectionHandler.start() };
-    stop() override { ConnectionHandler.stop() };
-
-}
-@enduml

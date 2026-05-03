@@ -19,3 +19,5 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Logger
         TransportHandler
 )
+
+add_subdirectory(tests)

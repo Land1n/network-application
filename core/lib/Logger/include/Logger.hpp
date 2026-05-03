@@ -10,7 +10,7 @@
 #include <thread>
 
 #include "LogEvent.hpp"
-/// + TODO: single-tone
+
 class Logger {
 public:
     static Logger& getInstance();

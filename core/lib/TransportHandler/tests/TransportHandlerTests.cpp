@@ -146,7 +146,7 @@ GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
 
 // Стресс-тест: множество клиентов обмениваются сообщениями через TransportHandler
 
-GTEST_TEST(TransportHandlerStressTest, ManyClientsMessaging) {
+GTEST_TEST(TransportHandlerTestStress, ManyClientsMessaging) {
     std::string address = "127.0.0.1";
     int port = 8094;
     const int num_clients = 10;

@@ -13,7 +13,7 @@
 
 #include <unordered_map>
 #include <mutex>
-// + TODO: multiConnect
+// + TODO:multiConnect
 class SegmentServer : public Network::Server {
 public:
     SegmentServer(const std::string& address, int port,bool multiConnect = true, bool debug = false);
@@ -27,16 +27,18 @@ public:
     void write(Network::ConnectionId id, const void *data, size_t sz) override;
     void disconnect(Network::ConnectionId id) override;
     void setIdDistributionHandler(IdDistributionHandler h) override;
+    int getAliveThreads();
+    int getConnectedClients();
 private:
     const std::string address;
     const int port;
     Logger& logger = Logger::getInstance();
-
-
     // Обработчики
     std::unique_ptr<ConnectionHandler> connection_handler;
     std::unique_ptr<MessageHandler> message_handler;
     std::unique_ptr<ServerRequestResponseHandler> request_response_handler;
+
+    std::atomic<int> aliveThreads = 0;
 
     bool multiConnect;
 };

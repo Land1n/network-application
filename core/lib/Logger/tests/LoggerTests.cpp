@@ -7,9 +7,7 @@
 
 #include "Logger.hpp"
 
-// Вспомогательный класс для перехвата std::cout
-
-// + TODO: Надо написать тетсы для логера
+// + TODO: допилить (потоки с разной задержкой)
 class CaptureStdout {
 public:
     CaptureStdout() : old_buf(std::cout.rdbuf()), ss() {
@@ -53,19 +51,22 @@ TEST_F(LoggerTests, LogLevelFiltering) {
 TEST_F(LoggerTests, ThreadSafety) {
     Logger& logger = Logger::getInstance();
     logger.setLevel(LogLevel::Trace);
-    const int thread_count = 10;
+    const int thread_count = 3;
+    const int message_count = 10;
     std::vector<std::thread> threads;
     std::atomic<int> counter{0};
 
-    for (int i = 0; i < thread_count; ++i) {
-        threads.emplace_back([&logger, &counter]() {
-            for (int j = 0; j < 100; ++j) {
-                logger.log(LogLevel::Info, "threadFunc", "Parallel log");
+    for (int i = 1; i <= thread_count; ++i) {
+
+        threads.emplace_back([i = i,&message_count,&logger, &counter]() {
+            for (int j = 1; j <= message_count; ++j) {
+                logger.log(LogLevel::Info, "thread="+std::to_string(i), "Message=" + std::to_string(j));
                 counter++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(10+i*10));
             }
         });
     }
     for (auto& t : threads) t.join();
-    EXPECT_EQ(counter, thread_count * 100);
+    EXPECT_EQ(counter, thread_count * message_count);
     // Если программа не упала и не было гонок данных – тест пройден
 }

@@ -61,7 +61,8 @@ private:
 
     Logger& logger = Logger::getInstance();
 
-    std::queue<std::shared_ptr<Task>> tasks;
+    std::queue<std::shared_ptr<Task>> tasks = {};
+    std::shared_ptr<Task> current_task = nullptr;
     std::unique_ptr<std::thread> thread = nullptr;
     std::atomic<StatusWorker> status = StatusWorker::Stop;
     unsigned short timeer;
