@@ -15,7 +15,7 @@ struct ConnectedSocket {
     std::shared_ptr<tcp::socket> ptr;
     int port;
     std::string address;
-    ConnectedSocket(std::shared_ptr<tcp::socket> socket, std::size_t id = 0);
+    ConnectedSocket(std::shared_ptr<tcp::socket> socket, std::size_t id);
     ConnectedSocket();
     std::string getAddressAndPort();
 };

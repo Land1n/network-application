@@ -17,7 +17,7 @@
 
 class SegmentClient : public Network::Client {
 public:
-    SegmentClient(const std::string& address, int port, bool debug = false);
+    SegmentClient(std::string  address, int port, bool debug = false);
     ~SegmentClient() override;
 
     void start() override;

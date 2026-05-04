@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <random>
+#include <utility>
 
 #include "InformationMessage.hpp"
 #include "RawMessage.hpp"
@@ -11,8 +12,8 @@
 #include "../lib/ClientRequestResponseHandler/include/ClientRequestResponseHandler.hpp"
 
 
-SegmentClient::SegmentClient(const std::string &serverAddress, int port, bool debug)
-    : address(serverAddress), port(port), debug(debug) {
+SegmentClient::SegmentClient(std::string serverAddress, int port, bool debug)
+    : address(std::move(serverAddress)), port(port), debug(debug) {
     connection_handler = std::make_unique<ConnectionHandler>(
         address, port, ConnectionHandlerType::Client, true
     );

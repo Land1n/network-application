@@ -4,5 +4,5 @@ build/
 .gitignore
 test.cpp
 test
-
+.clang-format
 clientserveriface/

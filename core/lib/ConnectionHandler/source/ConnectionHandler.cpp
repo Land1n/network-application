@@ -44,7 +44,7 @@ ConnectedSocket ConnectionHandler::findConnectedSocket(size_t id) {
     auto it = std::find_if(connected_sockets_.begin(), connected_sockets_.end(),
                            [id](const ConnectedSocket &cs) { return cs.id == id; });
     if (it != connected_sockets_.end()) return *it;
-    return ConnectedSocket();
+    return ConnectedSocket(nullptr,-1);
 }
 
 std::vector<ConnectedSocket>& ConnectionHandler::getSockets() { return connected_sockets_; }
