@@ -4,5 +4,7 @@
 #include <gtest/gtest.h>
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
+    if (!argv)
+        ::testing::FLAGS_gtest_filter = "ServerConnectionHandlerTests.*";
     return RUN_ALL_TESTS();
 }

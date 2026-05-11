@@ -14,6 +14,7 @@ class RequestResponseHandlerBase {
 public:
     RequestResponseHandlerBase(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG = false);
     virtual std::unique_ptr<Message> processingRequestResponse(std::unique_ptr<Message>) = 0;
+	virtual ~RequestResponseHandlerBase() = default;
 protected:
     std::shared_ptr<CreatorMessage> creator_message;
     Logger& logger = Logger::getInstance();

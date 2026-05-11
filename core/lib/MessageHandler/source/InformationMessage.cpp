@@ -24,9 +24,10 @@ json::object InformationMessage::serialize() {
 
     if (transaction == Transaction::Request) payload["transaction"] = 0;
     else if (transaction == Transaction::Response) payload["transaction"] = 1;
+	else if (transaction == Transaction::Tests) payload["transaction"] = 2;
     else payload["transaction"] = -1;
 
-    if (transaction == Transaction::Response)
+    if (transaction == Transaction::Response || transaction == Transaction::Tests)
         payload["numberCore"] = this->_numberCore;
 
     return payload;

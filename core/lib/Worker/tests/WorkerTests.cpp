@@ -7,6 +7,7 @@
 
 /// + TODO: main.cpp в тестах
 /// + TODO: починить нестабильный тест (разобраться)
+/// + TODO: valgrind
 class WorkerTests : public ::testing::Test {
 public:
     Worker worker;
@@ -40,10 +41,12 @@ TEST_F(WorkerTests, addOneTaskAndFlush) {
 }
 
 TEST_F(WorkerTests, addNTask) {
+	Logger::getInstance().setLevel(LogLevel::Trace);
+
     unsigned int N = 10;
     std::vector<std::shared_ptr<Task> > tasks;
     for (int i = 0; i < N; ++i) {
-        unsigned short counter = i;
+        std::atomic<uint8_t> counter = i;
         auto task = std::make_shared<Task>([&counter]() {
             counter += 1;
         });
@@ -97,8 +100,8 @@ TEST_F(WorkerTests, StopFalseDoTask) {
     });
     worker.stop(false);
     EXPECT_EQ(worker.getSizeQueue(),1);
-    cv.notify_one();
     taskCanFinish = true;
+	cv.notify_one();
 }
 
 

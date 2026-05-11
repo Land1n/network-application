@@ -7,15 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-file(GLOB LIB_SOURCES "include/*.hpp" "source/*.cpp")
-add_library(SegmentServerCore SHARED ${LIB_SOURCES})
+file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
+add_library(SegmentServerCore SHARED ${SOURCES})
 
 target_include_directories(SegmentServerCore PUBLIC include)
 
 target_link_libraries(SegmentServerCore PUBLIC
         Boost::system
         clientserveriface
-        ConnectionHandler
+        SyncServerConnectionHandler
+        SyncClientConnectionHandler
         MessageHandler
         RequestResponseHandler
         TransportHandler
@@ -24,6 +25,7 @@ target_link_libraries(SegmentServerCore PUBLIC
 )
 
 add_subdirectory(lib/ServerRequestResponseHandler)
+add_subdirectory(lib/SyncServerConnectionHandler)
 
 add_executable(seg_server_app main.cpp)
 

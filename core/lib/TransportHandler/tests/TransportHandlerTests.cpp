@@ -1,268 +1,232 @@
 //
 // Created by ivan on 07.03.2026.
 //
-
-#include "ConnectionHandler.hpp"
-#include "TransportHandler.hpp"
-
-#include <boost/asio.hpp>
-
-#include <gtest/gtest.h>
-#include <thread>
-
-#include "ConnectionHandler.hpp"
 #include "TransportHandler.hpp"
 #include <boost/asio.hpp>
 #include <gtest/gtest.h>
 #include <thread>
 #include <boost/json.hpp>
 
+#include "SyncServerConnectionHandler.hpp"
+#include "SyncClientConnectionHandler.hpp"
+
 namespace json = boost::json;
 
-GTEST_TEST(TransportHandlerTest, SendAndReadOnSocketTest) {
-    std::string address = "127.0.0.1";
-    int port = 8080;
+class TransportHandlerTests : public ::testing::Test {
+public:
+	std::shared_ptr<SyncServerConnectionHandler> server;
+	std::shared_ptr<SyncClientConnectionHandler> client;
 
-    auto server_handler = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, false);
-    auto client_handler = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
-    server_handler->start();
-    client_handler->start();
-    auto acceptor = server_handler->getAcceptor();
-    ASSERT_NE(acceptor, nullptr);
-    acceptor->listen();
+	std::string address = "127.0.0.1";
+	int port            = 8080;
 
-    std::vector<uint8_t> test_data = {1, 2, 3, 4, 8};
+	void SetUp() override
+	{
+		Logger::getInstance().setLevel(LogLevel::NoLog);
+		server = std::make_shared<SyncServerConnectionHandler>(address, port);
+		client = std::make_shared<SyncClientConnectionHandler>(address, port);
 
-    std::thread server_thread([server_handler, &test_data]() {
-        auto socket_on_server = server_handler->accept();
-        ASSERT_NE(socket_on_server.ptr, nullptr);
-        TransportHandler server_transport(socket_on_server.ptr);
-        TransportMessage msg = server_transport.read();
-        EXPECT_EQ(msg.payload, test_data);
-    });
+		server->start();
+		client->start();
+		server->listen();
+	}
 
-    std::thread client_thread([client_handler, &test_data]() {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        auto socket_on_client = client_handler->connect();
-        ASSERT_NE(socket_on_client.ptr, nullptr);
-        TransportHandler client_transport(socket_on_client.ptr);
-        TransportMessage msg;
-        msg.payload = test_data;
-        bool sent = client_transport.write(msg);
-        EXPECT_TRUE(sent);
-    });
+	void TearDown() override
+	{
+		server->stop();
+		client->stop();
+	}
+};
 
-    server_thread.join();
-    client_thread.join();
-    server_handler->stop();
-    client_handler->stop();
+TEST_F(TransportHandlerTests, SendAndReadOnSocketTest)
+{
+	std::vector<uint8_t> test_data = {1, 2, 3, 4, 8};
+
+	server->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler server_transport(cs.ptr);
+		TransportMessage msg = server_transport.read();
+		EXPECT_EQ(msg.payload, test_data);
+	});
+
+	client->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler client_transport(cs.ptr);
+		TransportMessage msg;
+		msg.payload = test_data;
+		bool sent   = client_transport.write(msg);
+		EXPECT_TRUE(sent);
+	});
+}
+// Тест на несколько последовательных сообщений
+TEST_F(TransportHandlerTests, MultipleMessages)
+{
+	std::atomic<int> received_count{0};
+	const int expected_count = 5;
+
+	server->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler transport(cs.ptr); // cs.ptr вместо sock
+		for(int i = 0; i < expected_count; ++i) {
+			TransportMessage msg = transport.read();
+			if(!msg.type.empty()) {
+				received_count++;
+			}
+		}
+	});
+
+	auto client_sock = client->connect();
+	ASSERT_NE(client_sock.ptr, nullptr);
+	TransportHandler client_transport(client_sock.ptr);
+
+	for(int i = 0; i < expected_count; ++i) {
+		boost::json::object obj;
+		obj["type"]          = "msg" + std::to_string(i);
+		obj["transaction"]   = 0;
+		std::string json_str = boost::json::serialize(obj);
+		TransportMessage msg;
+		msg.type        = "msg" + std::to_string(i);
+		msg.transaction = Transaction::Request;
+		msg.payload.assign(json_str.begin(), json_str.end());
+		bool sent = client_transport.write(msg);
+		EXPECT_TRUE(sent);
+	}
+	while(expected_count != received_count.load())
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+	EXPECT_EQ(received_count.load(), expected_count);
 }
 
-//Тест на несколько последовательных сообщений
-GTEST_TEST(TransportHandlerTest, MultipleMessages) {
-    std::string address = "127.0.0.1";
-    int port = 8091;
+// Тест на обрыв соединения во время чтения
+TEST_F(TransportHandlerTests, ConnectionLostDuringRead)
+{
+	bool isStartRead = false;
 
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, false);
-    auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, false);
+	server->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler transport(cs.ptr);
+		isStartRead = true;
+		TransportMessage msg = transport.read();
+		EXPECT_EQ(msg.type, "error");
+		EXPECT_EQ(msg.transaction, Transaction::Error);
+	});
 
-    server->start();
-    client->start();
+	auto client_sock = client->connect();
+	ASSERT_NE(client_sock.ptr, nullptr);
 
-    std::atomic<int> received_count{0};
-    const int expected_count = 5;
+	uint32_t magic = 0xA0ABA0A;
+	boost::asio::write(*client_sock.ptr, boost::asio::buffer(&magic, 4));
+	while(!isStartRead) std::this_thread::sleep_for(std::chrono::microseconds(100));
 
-    server->setTaskSocket([&](ConnectedSocket& cs) {
-        TransportHandler transport(cs.ptr);   // cs.ptr вместо sock
-        for (int i = 0; i < expected_count; ++i) {
-            TransportMessage msg = transport.read();
-            if (!msg.type.empty()) {
-                received_count++;
-            }
-        }
-    });
-    server->listen();
-
-    auto client_sock = client->connect();
-    ASSERT_NE(client_sock.ptr, nullptr);
-    TransportHandler client_transport(client_sock.ptr);
-
-    for (int i = 0; i < expected_count; ++i) {
-        boost::json::object obj;
-        obj["type"] = "msg" + std::to_string(i);
-        obj["transaction"] = 0;
-        std::string json_str = boost::json::serialize(obj);
-        TransportMessage msg;
-        msg.type = "msg" + std::to_string(i);
-        msg.transaction = Transaction::Request;
-        msg.payload.assign(json_str.begin(), json_str.end());
-        bool sent = client_transport.write(msg);
-        EXPECT_TRUE(sent);
-    }
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    EXPECT_EQ(received_count.load(), expected_count);
-
-    client->stop();
-    server->stop();
-}
-
-//Тест на обрыв соединения во время чтения
-GTEST_TEST(TransportHandlerTest, ConnectionLostDuringRead) {
-    std::string address = "127.0.0.1";
-    const int port = 8093;
-
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server, true);
-    auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, true);
-
-    server->start();
-    client->start();
-
-    std::promise<void> read_started;
-    std::future<void> read_started_future = read_started.get_future();
-
-    server->setTaskSocket([&](ConnectedSocket&cs) {
-        TransportHandler transport(cs.ptr);
-        read_started.set_value();
-        TransportMessage msg = transport.read();
-        EXPECT_EQ(msg.type, "error");
-        EXPECT_EQ(msg.transaction, Transaction::Error);
-    });
-    server->listen();
-
-    auto client_sock = client->connect();
-    ASSERT_NE(client_sock.ptr, nullptr);
-
-    uint32_t magic = 0xA0ABA0A;
-    boost::asio::write(*client_sock.ptr, boost::asio::buffer(&magic, 4));
-    read_started_future.wait();
-
-    client_sock.ptr->close();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    client->stop();
-    server->stop();
+	client_sock.ptr->close();
 }
 
 // Стресс-тест: множество клиентов обмениваются сообщениями через TransportHandler
 
-GTEST_TEST(TransportHandlerTestStress, ManyClientsMessaging) {
-    std::string address = "127.0.0.1";
-    int port = 8094;
-    const int num_clients = 10;
-    const int messages_per_client = 10;
+TEST_F(TransportHandlerTests, ManyClientsMessaging)
+{
+	const int num_clients         = 10;
+	const int messages_per_client = 10;
 
-    auto server = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Server,true);
-    server->start();
+	std::atomic<int> server_handlers_active{0};
+	std::mutex server_handlers_mutex;
+	std::condition_variable server_handlers_cv;
+	server->setTaskSocket([&](ConnectedSocket& cs) {
+		server_handlers_active++;
+		TransportHandler transport(cs.ptr, 0xA0ABA0A);
+		try {
+			while(true) {
+				TransportMessage req = transport.read();
+				if(req.transaction == Transaction::Error)
+					break;
 
-    std::atomic<int> server_handlers_active{0};
-    std::mutex server_handlers_mutex;
-    std::condition_variable server_handlers_cv;
+				if(req.type == "ping") {
+					std::string json_str(req.payload.begin(), req.payload.end());
+					boost::json::value jv = boost::json::parse(json_str);
+					std::string data      = boost::json::value_to<std::string>(jv.at("data"));
 
-    server->setTaskSocket([&](ConnectedSocket& cs) {
-        server_handlers_active++;
-        TransportHandler transport(cs.ptr, 0xA0ABA0A, true);
-        try {
-            while (true) {
-                TransportMessage req = transport.read();
-                if (req.transaction == Transaction::Error) break;
+					// Формируем ответ
+					std::string response_data = "pong " + data;
+					boost::json::object resp_obj;
+					resp_obj["type"]        = "pong";
+					resp_obj["transaction"] = static_cast<int>(Transaction::Response);
+					resp_obj["data"]        = response_data;
+					std::string resp_json   = boost::json::serialize(resp_obj);
+					std::vector<uint8_t> resp_payload(resp_json.begin(), resp_json.end());
+					TransportMessage resp("pong", Transaction::Response, resp_payload);
+					transport.write(resp);
+				}
+			}
+		}
+		catch(const std::exception&) {
+		}
+		server_handlers_active--;
+		server_handlers_cv.notify_one();
+	});
 
-                if (req.type == "ping") {
-                    std::string json_str(req.payload.begin(), req.payload.end());
-                    boost::json::value jv = boost::json::parse(json_str);
-                    std::string data = boost::json::value_to<std::string>(jv.at("data"));
+	std::atomic<int> clients_finished{0};
+	std::mutex finish_mutex;
+	std::condition_variable finish_cv;
+	std::vector<std::shared_ptr<SyncClientConnectionHandler>> clients;
+	clients.reserve(num_clients);
 
-                    // Формируем ответ
-                    std::string response_data = "pong " + data;
-                    boost::json::object resp_obj;
-                    resp_obj["type"] = "pong";
-                    resp_obj["transaction"] = static_cast<int>(Transaction::Response);
-                    resp_obj["data"] = response_data;
-                    std::string resp_json = boost::json::serialize(resp_obj);
-                    std::vector<uint8_t> resp_payload(resp_json.begin(), resp_json.end());
-                    TransportMessage resp("pong", Transaction::Response, resp_payload);
-                    transport.write(resp);
-                }
-            }
-        } catch (const std::exception&) {
+	auto start_time = std::chrono::steady_clock::now();
 
-        }
-        server_handlers_active--;
-        server_handlers_cv.notify_one();
-    });
+	for(int i = 0; i < num_clients; ++i) {
+		auto client = std::make_shared<SyncClientConnectionHandler>(address, port);
 
-    server->listen();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		client->start();
 
-    std::atomic<int> clients_finished{0};
-    std::mutex finish_mutex;
-    std::condition_variable finish_cv;
-    std::vector<std::shared_ptr<ConnectionHandler>> clients;
-    clients.reserve(num_clients);
+		client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](ConnectedSocket& cs) {
+			TransportHandler transport(cs.ptr, 0xA0ABA0A);
+			try {
+				for(int msg_id = 1; msg_id <= messages_per_client; ++msg_id) {
+					// Формируем JSON-запрос
 
-    auto start_time = std::chrono::steady_clock::now();
+					boost::json::object req_obj;
+					req_obj["type"]        = "ping";
+					req_obj["transaction"] = static_cast<int>(Transaction::Request);
+					req_obj["data"]        = "ping " + std::to_string(msg_id);
+					std::string req_json   = boost::json::serialize(req_obj);
+					std::vector<uint8_t> req_payload(req_json.begin(), req_json.end());
+					TransportMessage req("ping", Transaction::Request, req_payload);
+					if(!transport.write(req))
+						break;
 
+					// Читаем ответ
+					TransportMessage resp = transport.read();
+					if(resp.type != "pong")
+						break;
+					std::string resp_json(resp.payload.begin(), resp.payload.end());
+					boost::json::value jv     = boost::json::parse(resp_json);
+					std::string response_data = boost::json::value_to<std::string>(jv.at("data"));
+					std::string expected      = "pong ping " + std::to_string(msg_id);
+					EXPECT_EQ(response_data, expected);
+				}
+				// Закрываем соединение, чтобы серверный обработчик вышел из цикла
+				cs.ptr->shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+				cs.ptr->close();
+			}
+			catch(const std::exception&) {
+				// игнорируем
+			}
+			clients_finished++;
+			finish_cv.notify_one();
+		});
 
-    for (int i = 0; i < num_clients; ++i) {
-        auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client,true);
-        client->start();
+		auto sock = client->connect();
+		ASSERT_NE(sock.ptr, nullptr);
+		clients.push_back(client);
+	}
 
-        client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](ConnectedSocket& cs) {
-            TransportHandler transport(cs.ptr, 0xA0ABA0A, false);
-            try {
-                for (int msg_id = 1; msg_id <= messages_per_client; ++msg_id) {
-                    // Формируем JSON-запрос
+	{
+		std::unique_lock<std::mutex> lock(server_handlers_mutex);
+		bool all_handlers_done = server_handlers_cv.wait_for(lock, std::chrono::seconds(3), [&]() {
+			return server_handlers_active.load() == 0;
+		});
+		EXPECT_TRUE(all_handlers_done) << "Server handlers did not finish";
+	}
 
-                    boost::json::object req_obj;
-                    req_obj["type"] = "ping";
-                    req_obj["transaction"] = static_cast<int>(Transaction::Request);
-                    req_obj["data"] = "ping " + std::to_string(msg_id);
-                    std::string req_json = boost::json::serialize(req_obj);
-                    std::vector<uint8_t> req_payload(req_json.begin(), req_json.end());
-                    TransportMessage req("ping", Transaction::Request, req_payload);
-                    if (!transport.write(req)) break;
+	auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start_time);
+	std::cout << "ManyClientsMessaging completed with " << num_clients << " clients, " << messages_per_client
+	          << " messages each in " << duration.count() << " seconds\n";
 
-                    // Читаем ответ
-                    TransportMessage resp = transport.read();
-                    if (resp.type != "pong") break;
-                    std::string resp_json(resp.payload.begin(), resp.payload.end());
-                    boost::json::value jv = boost::json::parse(resp_json);
-                    std::string response_data = boost::json::value_to<std::string>(jv.at("data"));
-                    std::string expected = "pong ping " + std::to_string(msg_id);
-                    EXPECT_EQ(response_data, expected);
-                }
-                // Закрываем соединение, чтобы серверный обработчик вышел из цикла
-                cs.ptr->shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-                cs.ptr->close();
-            } catch (const std::exception&) {
-                // игнорируем
-            }
-            clients_finished++;
-            finish_cv.notify_one();
-        });
-
-        auto sock = client->connect();
-        ASSERT_NE(sock.ptr, nullptr);
-        clients.push_back(client);
-    }
-
-
-    {
-        std::unique_lock<std::mutex> lock(server_handlers_mutex);
-        bool all_handlers_done = server_handlers_cv.wait_for(lock, std::chrono::seconds(3),
-            [&]() { return server_handlers_active.load() == 0; });
-        EXPECT_TRUE(all_handlers_done) << "Server handlers did not finish";
-    }
-
-
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(
-        std::chrono::steady_clock::now() - start_time);
-    std::cout << "ManyClientsMessaging completed with " << num_clients << " clients, "
-              << messages_per_client << " messages each in " << duration.count() << " seconds\n";
-
-
-    for (auto& c : clients) {
-        c->stop();
-    }
-    server->stop();
+	for(auto& c: clients) {
+		c->stop();
+	}
 }

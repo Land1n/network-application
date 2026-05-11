@@ -4,7 +4,7 @@
 #pragma once
 
 #include "../../clientserveriface/include/clientserveriface/client.h"
-#include "ConnectionHandler.hpp"
+#include "SyncClientConnectionHandler.hpp"
 #include "Logger.hpp"
 #include "MessageHandler.hpp"
 #include "TransportHandler.hpp"
@@ -36,7 +36,7 @@ private:
     bool debug;
 
     // Обработчики
-    std::unique_ptr<ConnectionHandler> connection_handler;
+    std::unique_ptr<SyncClientConnectionHandler> connection_handler;
     std::unique_ptr<TransportHandler> transport_handler;
     std::unique_ptr<MessageHandler> message_handler;
     std::unique_ptr<ClientRequestResponseHandler> request_response_handler;

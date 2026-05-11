@@ -13,30 +13,22 @@
 #include "SegmentServer.hpp"
 #include "TransportHandler.hpp"
 
+#include "SyncClientConnectionHandler.hpp"
+
 using namespace std::chrono_literals;
 
 class SegmentServerTest : public ::testing::Test {
 protected:
-    void SetUp() override {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dist(20000, 30000);
-        port = dist(gen);
-        address = "127.0.0.1";
-    }
 
     void TearDown() override {
-        if (server) {
-            server->stop();
-            server.reset();
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    	server->stop();
     }
 
     void startServer(bool multiConnect = true) {
-        server = std::make_unique<SegmentServer>(address, port, multiConnect, false);
+
+        server = std::make_unique<SegmentServer>(address, port, multiConnect);
+    	Logger::getInstance().setLevel(LogLevel::NoLog);
         server->start();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     std::unique_ptr<TransportHandler> connectClient() {
@@ -49,8 +41,8 @@ protected:
 
     boost::asio::io_context io_context;
     std::unique_ptr<SegmentServer> server = nullptr;
-    std::string address;
-    int port;
+	int port = 8000;
+	std::string address = "127.0.0.1";
 };
 
 TransportMessage sendAndReceive(TransportHandler &client, TransportMessage request) {
@@ -71,10 +63,9 @@ TEST_F(SegmentServerTest, AcceptConnection_AndSendSignalRequest_ReturnsSignalRes
     auto clientHandler = connectClient();
     ASSERT_NE(clientHandler, nullptr);
 
-    // Создаём запрос signal
     boost::json::object reqObj;
     reqObj["type"] = "signal";
-    reqObj["transaction"] = 1; // Request
+    reqObj["transaction"] = 1;
     reqObj["central_Freq"] = 6100;
     reqObj["signal"] = boost::json::array{boost::json::array{-88.65925598144531, -65.49491882324219}};
     std::string jsonStr = boost::json::serialize(reqObj);
@@ -156,9 +147,9 @@ TEST_F(SegmentServerTest, ChechCounterThread) {
     bool isMultiConnect = false;
     short unsigned NClient = 100;
     startServer(isMultiConnect);
-    std::vector<std::shared_ptr<ConnectionHandler> > clients;
+    std::vector<std::shared_ptr<SyncClientConnectionHandler> > clients;
     for (int i = 0; i < NClient; i++) {
-        auto client = std::make_shared<ConnectionHandler>(address, port, ConnectionHandlerType::Client, true);
+        auto client = std::make_shared<SyncClientConnectionHandler>(address, port);
         client->start();
         client->connect();
         clients.push_back(client);
@@ -200,40 +191,39 @@ TEST_F(SegmentServerTest, ChechCounterThread) {
 TEST_F(SegmentServerTest, ManyMessagesThenDisconnect) {
     startServer(true);  // multiConnect = true
 
-    auto clientHandler = connectClient();
-    ASSERT_NE(clientHandler, nullptr);
+	auto client = std::make_shared<SyncClientConnectionHandler>(address, port);
+	client->start();
+	client->connect();
 
-    Network::ConnectionId clientId = 0;
-    server->setNewConnectionHandler([&clientId](Network::ConnectionId id) {
-        clientId = id;
-    });
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    ASSERT_EQ(clientId, 0);
 
-    boost::json::object reqObj;
-    reqObj["type"] = "information";
-    reqObj["transaction"] = static_cast<int>(Transaction::Request);
-    reqObj["numberCore"] = 4;
-    std::string jsonStr = boost::json::serialize(reqObj);
-    std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
-    TransportMessage request("information", Transaction::Request, payload);
+	boost::json::object reqObj;
+	reqObj["type"] = "information";
+	reqObj["transaction"] = static_cast<int>(Transaction::Request);
+	reqObj["numberCore"] = 4;
+	std::string jsonStr = boost::json::serialize(reqObj);
+	std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
+	TransportMessage request("information", Transaction::Request, payload);
 
     const int numMessages = 10;
 
     const int numMessagesBeforeDisconnect = numMessages/2;
 
-    for (int i = 0; i < numMessages; ++i) {
+    for (int i = 1; i <= numMessages; ++i) {
         if (i <= numMessagesBeforeDisconnect)
-            ASSERT_TRUE(clientHandler->write(request));
+        	client->setTaskSocket([&request](ConnectedSocket& cs) {
+        		TransportHandler transport_handler(cs.ptr);
+        		ASSERT_TRUE(transport_handler.write(request));
+        	});
         else
-            ASSERT_FALSE(clientHandler->write(request));
+        	client->setTaskSocket([&request](ConnectedSocket& cs) {
+				TransportHandler transport_handler(cs.ptr);
+        		ASSERT_FALSE(transport_handler.write(request));
+			});
         if (i == numMessagesBeforeDisconnect) {
-            server->disconnect(clientId);
-            // break;
+            server->disconnect(0);
         }
     }
-
-
+	client->stop();
     int waitCount = 0;
     while (server->getAliveThreads() != 2 && waitCount < 50) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -245,10 +235,19 @@ TEST_F(SegmentServerTest, ManyMessagesThenDisconnect) {
 
     EXPECT_TRUE(server->isRunning());
 
-    auto newClient = connectClient();
-    ASSERT_NE(newClient, nullptr);
+	auto new_client = std::make_shared<SyncClientConnectionHandler>(address, port);
+	new_client->start();
+	new_client->connect();
 
-    auto response = sendAndReceive(*newClient, request);
-    EXPECT_EQ(response.type, "information");
-    EXPECT_EQ(response.transaction, Transaction::Response);
+	server->setReadHandler([](Network::ConnectionId, const void* data, size_t sz) {
+		json::value json_value = json::parse(static_cast<const char*>(data));
+		EXPECT_EQ(json_value.at("type"), "information");
+		EXPECT_EQ(json_value.at("transaction"), 1);
+	});
+	new_client->setTaskSocket([&request](ConnectedSocket& cs) {
+		TransportHandler transport_handler(cs.ptr);
+		ASSERT_TRUE(transport_handler.write(request));
+	});
+
+	new_client->stop();
 }

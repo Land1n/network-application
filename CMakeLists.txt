@@ -3,13 +3,14 @@ project(server_client_app LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+#add_compile_options(-fsanitize=address -g -static-libasan)
+#add_link_options(-fsanitize=address -static-libasan)
 find_package(GTest REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread json chrono)
 
 set(PARENT_PROJECT ON)
 
-add_subdirectory(core/lib/ConnectionHandler)
+add_subdirectory(core/lib/BaseConnectionHandler)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/Logger)
 add_subdirectory(core/lib/MessageHandler)
@@ -48,7 +49,6 @@ target_link_libraries(all_tests PRIVATE
         Boost::chrono
         Worker
         Logger
-        ConnectionHandler
         TransportHandler
         MessageHandler
         ServerRequestResponseHandler

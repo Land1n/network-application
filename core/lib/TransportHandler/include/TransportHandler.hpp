@@ -13,7 +13,7 @@ using tcp = boost::asio::ip::tcp;
 
 class TransportHandler {
 public:
-    explicit TransportHandler(std::shared_ptr<tcp::socket> socket, uint32_t magicNumber = 0xA0ABA0A, bool DEBUG = false);
+    explicit TransportHandler(std::shared_ptr<tcp::socket> socket, uint32_t magicNumber = 0xA0ABA0A);
     TransportMessage read();
     bool write(TransportMessage &message);
 

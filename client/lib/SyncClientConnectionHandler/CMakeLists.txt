@@ -1,25 +1,20 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(ConnectionHandler)
+project(SyncClientConnectionHandler)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system json)
 
-file(GLOB SOURCES "include/*.h" "source/*.cpp")
-
+file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
-
 target_link_libraries(${PROJECT_NAME} PUBLIC
-        Boost::system
-        Logger
-        Worker
+    BaseConnectionHandler
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-add_subdirectory(tests)

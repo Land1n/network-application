@@ -7,11 +7,12 @@ set(SOURCES ${PROJECT_NAME}.cpp main.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
-                GTest::gtest
-                Boost::system
-                Boost::json
-                TransportHandler
-                ConnectionHandler
+        GTest::gtest
+        Boost::system
+        Boost::json
+        TransportHandler
+        ServerConnectionHandler
+        SyncClientConnectionHandler
 )
 
 enable_testing()
