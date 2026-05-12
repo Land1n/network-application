@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "TransportHandler.hpp"
+
 #include <boost/asio.hpp>
 #include <memory>
 #include <string>
@@ -16,5 +18,5 @@ struct ConnectedSocket {
     int port;
     std::string address;
     ConnectedSocket(std::shared_ptr<tcp::socket> socket, std::size_t id);
-    std::string getAddressAndPort();
+    const std::string getAddressAndPort();
 };

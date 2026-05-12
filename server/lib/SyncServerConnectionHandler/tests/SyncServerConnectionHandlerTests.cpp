@@ -261,7 +261,7 @@ TEST_F(SyncServerClientConnectionHandlerTest, LongLivedConnections)
 		if(std::chrono::steady_clock::now() - start_time > std::chrono::seconds(30)) {
 			FAIL() << "Timeout waiting for clients to connect";
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		std::this_thread::sleep_for(std::chrono::microseconds(10));
 	}
 	EXPECT_EQ(server->getSockets().size(), num_clients);
 
@@ -278,7 +278,7 @@ TEST_F(SyncServerClientConnectionHandlerTest, LongLivedConnections)
 		if(std::chrono::steady_clock::now() - start_time > std::chrono::seconds(30 + duration_seconds)) {
 			FAIL() << "Timeout waiting for server to clear sockets";
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		std::this_thread::sleep_for(std::chrono::microseconds(10));
 	}
 	EXPECT_TRUE(server->getSockets().empty());
 }

@@ -8,17 +8,49 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(Boost REQUIRED COMPONENTS system json)
 
-file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
+# List all core sources except the factory
+set(CORE_SOURCES
+        source/BaseTransportHandler.cpp
+        source/TransportHandler.cpp
+        source/Transaction.cpp
+)
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES}
-        source/Transaction.cpp)
+# Optional: also list the corresponding headers for dependency tracking
+set(CORE_HEADERS
+        include/BaseTransportHandler.hpp
+        include/TransportHandler.hpp
+        include/TransportMessage.hpp
+        include/Transaction.hpp
+)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
+add_library(TransportHandlerCore SHARED ${CORE_SOURCES} ${CORE_HEADERS})
+
+target_link_libraries(TransportHandlerCore PUBLIC
         Boost::system
         Boost::json
         Logger
 )
+target_include_directories(TransportHandlerCore PUBLIC include)
 
-target_include_directories(${PROJECT_NAME} PUBLIC include)
+# Build the SyncTransportHandler subproject
+add_subdirectory(lib/SyncTransportHandler)
+
+# Factory library – knows about concrete handlers
+add_library(TransportHandlerFactory STATIC
+        source/CreatorTransportHandler.cpp
+)
+target_link_libraries(TransportHandlerFactory PUBLIC
+        TransportHandlerCore
+        SyncTransportHandler
+)
+target_include_directories(TransportHandlerFactory PUBLIC include)
+
+# Convenience aggregate for external consumers (like the tests)
+add_library(TransportHandler INTERFACE)
+target_link_libraries(TransportHandler INTERFACE
+        TransportHandlerCore
+        SyncTransportHandler
+        TransportHandlerFactory
+)
 
 add_subdirectory(tests)

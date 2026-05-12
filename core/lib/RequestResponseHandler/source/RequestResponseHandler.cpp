@@ -4,7 +4,6 @@
 
 #include "RequestResponseHandler.hpp"
 
-RequestResponseHandlerBase::RequestResponseHandlerBase(std::shared_ptr<CreatorMessage> creator_message, bool DEBUG)
-    : creator_message(creator_message) {
-    if (!DEBUG) logger.setLevel(LogLevel::Error);
-}
+RequestResponseHandlerBase::RequestResponseHandlerBase(const std::shared_ptr<CreatorMessage>& creator_message) :
+    creator_message(creator_message)
+{}

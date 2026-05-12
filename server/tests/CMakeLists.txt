@@ -14,8 +14,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         TransportHandler
         MessageHandler
         ServerRequestResponseHandler
-        ServerConnectionHandler
-        ClientConnectionHandler
+        SyncServerConnectionHandler
+        SyncClientConnectionHandler
 )
 
 enable_testing()

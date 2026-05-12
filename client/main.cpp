@@ -21,12 +21,11 @@ int main() {
 
     Network::ClientCreatorParams params;
     params.hostname = "127.0.0.1";
-    params.port = 8080;
-    params.logLevel = static_cast<uint32_t>(LogLevel::Debug);
-
+    params.port = 8000;
     SegmentClientCreator creator;
     auto net_client = creator.create(params);
     auto* client = reinterpret_cast<SegmentClient*>(net_client.get());
+	Logger::getInstance().setLevel(LogLevel::Debug);
     client->setReadHandler([](const void* data, size_t sz) {
         std::cout.write(static_cast<const char*>(data), sz) << std::endl;
     });

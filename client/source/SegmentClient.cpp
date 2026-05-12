@@ -14,7 +14,7 @@
 
 
 // Вспомогательная функция нужная лишь для реализации проверки ответов сервера на различного типа сообщения
-TransportMessage generateRandomMessage(const std::unique_ptr<MessageHandler>& message_handler)
+std::unique_ptr<Message> generateRandomMessage(const std::unique_ptr<ClientRequestResponseHandler>& message_handler)
 {
 	std::string new_message_type;
 	std::random_device rd;
@@ -27,7 +27,7 @@ TransportMessage generateRandomMessage(const std::unique_ptr<MessageHandler>& me
 		new_message_type = "information";
 	else if(val == 3)
 		new_message_type = "raw";
-	return message_handler->serialize(std::make_unique<Message>(new_message_type, Transaction::Request));
+	return message_handler->processingRequestResponse(std::make_unique<Message>(new_message_type, Transaction::Request));
 }
 
 // Вспомогательная функция нужная для отображеннея ответов сервера
@@ -94,10 +94,11 @@ void SegmentClient::start()
 			if(worker_task.getSizeQueue() == 0)
 				worker_task.addTask([this]() {
 
-					auto transport_message = generateRandomMessage(message_handler);
-					logger.log(LogLevel::Info, "Auto task", "Generation message type: " + transport_message.type);
+					auto request_message = generateRandomMessage(request_response_handler);
+					auto request_transport_message = message_handler->serialize(std::move(request_message));
+					logger.log(LogLevel::Info, "Auto task", "Generation message type: " + request_transport_message.type);
 
-					if(transport_handler->write(transport_message)) {
+					if(transport_handler->write(request_transport_message)) {
 						TransportMessage new_transport_message = transport_handler->read();
 						if(new_transport_message.transaction != Transaction::Error) {
 							auto new_message = message_handler->parse(new_transport_message);

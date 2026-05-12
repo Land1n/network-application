@@ -11,7 +11,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Boost::system
         Boost::json
         TransportHandler
-        ServerConnectionHandler
+        SyncServerConnectionHandler
         SyncClientConnectionHandler
 )
 

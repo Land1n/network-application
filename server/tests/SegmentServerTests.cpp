@@ -22,33 +22,27 @@ protected:
 
     void TearDown() override {
     	server->stop();
+    	client->stop();
     }
-
     void startServer(bool multiConnect = true) {
 
         server = std::make_unique<SegmentServer>(address, port, multiConnect);
     	Logger::getInstance().setLevel(LogLevel::NoLog);
         server->start();
+
+    	client = std::make_shared<SyncClientConnectionHandler>(address,port);
+    	client->start();
+    	client->connect();
     }
 
-    std::unique_ptr<TransportHandler> connectClient() {
-        auto sock = std::make_shared<boost::asio::ip::tcp::socket>(io_context);
-        boost::system::error_code ec;
-        sock->connect(boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(address), port), ec);
-        if (ec) return nullptr;
-        return std::make_unique<TransportHandler>(sock);
-    }
 
     boost::asio::io_context io_context;
+	std::shared_ptr<SyncClientConnectionHandler> client = nullptr;
     std::unique_ptr<SegmentServer> server = nullptr;
 	int port = 8000;
 	std::string address = "127.0.0.1";
 };
 
-TransportMessage sendAndReceive(TransportHandler &client, TransportMessage request) {
-    EXPECT_TRUE(client.write(request));
-    return client.read();
-}
 
 TEST_F(SegmentServerTest, StartStop_NoCrash) {
     startServer();
@@ -60,9 +54,6 @@ TEST_F(SegmentServerTest, StartStop_NoCrash) {
 TEST_F(SegmentServerTest, AcceptConnection_AndSendSignalRequest_ReturnsSignalResponse) {
     startServer();
 
-    auto clientHandler = connectClient();
-    ASSERT_NE(clientHandler, nullptr);
-
     boost::json::object reqObj;
     reqObj["type"] = "signal";
     reqObj["transaction"] = 1;
@@ -70,75 +61,58 @@ TEST_F(SegmentServerTest, AcceptConnection_AndSendSignalRequest_ReturnsSignalRes
     reqObj["signal"] = boost::json::array{boost::json::array{-88.65925598144531, -65.49491882324219}};
     std::string jsonStr = boost::json::serialize(reqObj);
     std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
-    TransportMessage request("signal", Transaction::Request, payload);
 
-    auto response = sendAndReceive(*clientHandler, request);
-    EXPECT_EQ(response.type, "signal");
-    EXPECT_EQ(response.transaction, Transaction::Response);
+	client->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler transport_handler(cs.ptr);
+		MessageHandler message_handler;
+		auto request = message_handler.serialize(std::make_unique<Message>("signal", Transaction::Request));
+		EXPECT_TRUE(transport_handler.write(request));
+		TransportMessage response = transport_handler.read();
+		EXPECT_EQ(response.type, "signal");
+		EXPECT_EQ(response.transaction, Transaction::Response);
+		EXPECT_EQ(response.payload, payload);
+	});
 
-
-    try {
-        auto jv = boost::json::parse(std::string(response.payload.begin(), response.payload.end()));
-        EXPECT_EQ(jv.at("type").as_string(), "signal");
-        EXPECT_EQ(jv.at("transaction").as_int64(), static_cast<int>(Transaction::Response));
-        EXPECT_EQ(jv.at("central_Freq").as_int64(), 6100);
-        auto signalArr = jv.at("signal").as_array();
-        EXPECT_EQ(signalArr.size(), 1);
-        auto point = signalArr[0].as_array();
-        EXPECT_DOUBLE_EQ(point[0].as_double(), -88.65925598144531);
-        EXPECT_DOUBLE_EQ(point[1].as_double(), -65.49491882324219);
-    } catch (const std::exception &e) {
-        FAIL() << "JSON parse error: " << e.what();
-    }
 }
 
 TEST_F(SegmentServerTest, InformationRequest_ReturnsInformationResponse) {
     startServer();
-    auto clientHandler = connectClient();
-    ASSERT_NE(clientHandler, nullptr);
 
-    boost::json::object reqObj;
-    reqObj["type"] = "information";
-    reqObj["transaction"] = 1;
-    reqObj["numberCore"] = 4;
-    std::string jsonStr = boost::json::serialize(reqObj);
-    std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
-    TransportMessage request("information", Transaction::Request, payload);
+	boost::json::object reqObj;
+	reqObj["type"] = "information";
+	reqObj["transaction"] = 1;
+	reqObj["numberCore"] = 4;
+	std::string jsonStr = boost::json::serialize(reqObj);
+	std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
 
-    auto response = sendAndReceive(*clientHandler, request);
-    EXPECT_EQ(response.type, "information");
-    EXPECT_EQ(response.transaction, Transaction::Response);
 
-    auto jv = boost::json::parse(std::string(response.payload.begin(), response.payload.end()));
-    EXPECT_EQ(jv.at("type").as_string(), "information");
-    EXPECT_EQ(jv.at("numberCore").as_int64(), 4);
+	client->setTaskSocket([&](ConnectedSocket& cs) {
+		TransportHandler transport_handler(cs.ptr);
+		MessageHandler message_handler;
+		auto request = message_handler.serialize(std::make_unique<Message>("information", Transaction::Request));
+		EXPECT_TRUE(transport_handler.write(request));
+		TransportMessage response = transport_handler.read();
+		EXPECT_EQ(response.type, "information");
+		EXPECT_EQ(response.transaction, Transaction::Response);
+		EXPECT_EQ(response.payload, payload);
+	});
 }
 
 TEST_F(SegmentServerTest, MultiConnectDisabled_OnlyOneConnectionAllowed) {
     startServer(false);
+	// В startServer() уже сразу есть подключение
+	auto client_two = std::make_shared<SyncClientConnectionHandler>(address, port);
+	client_two->start();
+	client_two->connect();
 
-    auto client1 = connectClient();
-    ASSERT_NE(client1, nullptr);
+	client_two->setTaskSocket([](ConnectedSocket& cs) {
+		TransportHandler transport_handler(cs.ptr);
+		MessageHandler message_handler;
+		auto request = message_handler.serialize(std::make_unique<Message>("information", Transaction::Request));
+		EXPECT_FALSE(transport_handler.write(request));
+	});
 
-    // Формируем правильный JSON для information запроса
-    boost::json::object reqObj;
-    reqObj["type"] = "information";
-    reqObj["transaction"] = static_cast<int>(Transaction::Request);
-    reqObj["numberCore"] = 4;
-    std::string jsonStr = boost::json::serialize(reqObj);
-    std::vector<uint8_t> payload(jsonStr.begin(), jsonStr.end());
-    TransportMessage req("information", Transaction::Request, payload);
-
-    auto resp1 = sendAndReceive(*client1, req);
-    EXPECT_EQ(resp1.type, "information");
-
-    auto client2 = connectClient();
-    if (client2) {
-        auto resp2 = sendAndReceive(*client2, req);
-        EXPECT_EQ(resp2.transaction, Transaction::Error);
-    } else {
-        SUCCEED();
-    }
+	client_two->stop();
 }
 
 // + TODO: убедиться, что не создаем больше потоков, чем есть сокетов в тесте
@@ -156,11 +130,11 @@ TEST_F(SegmentServerTest, ChechCounterThread) {
     }
 
     if (isMultiConnect) {
-        while (server->getConnectedClients() != NClient)
+        while (server->getConnectedClients().size() != NClient)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         EXPECT_EQ(server->getAliveThreads(), 2+NClient);
     } else {
-        while (server->getConnectedClients() != 1)
+        while (server->getConnectedClients().size() != 1)
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 
@@ -191,11 +165,6 @@ TEST_F(SegmentServerTest, ChechCounterThread) {
 TEST_F(SegmentServerTest, ManyMessagesThenDisconnect) {
     startServer(true);  // multiConnect = true
 
-	auto client = std::make_shared<SyncClientConnectionHandler>(address, port);
-	client->start();
-	client->connect();
-
-
 	boost::json::object reqObj;
 	reqObj["type"] = "information";
 	reqObj["transaction"] = static_cast<int>(Transaction::Request);
@@ -220,16 +189,13 @@ TEST_F(SegmentServerTest, ManyMessagesThenDisconnect) {
         		ASSERT_FALSE(transport_handler.write(request));
 			});
         if (i == numMessagesBeforeDisconnect) {
-            server->disconnect(0);
+        	server->disconnect(0);
         }
     }
 	client->stop();
-    int waitCount = 0;
-    while (server->getAliveThreads() != 2 && waitCount < 50) {
+    while (server->getAliveThreads() != 2 && server->getConnectedClients().size() > 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        ++waitCount;
     }
-
 
     EXPECT_EQ(server->getAliveThreads(), 2);
 

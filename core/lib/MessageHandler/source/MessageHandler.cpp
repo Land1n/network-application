@@ -13,7 +13,7 @@
 
 namespace json = boost::json;
 
-MessageHandler::MessageHandler(bool DEBUG) {
+MessageHandler::MessageHandler() {
     creator_message->addMessageOnMap("signal", [](const std::string& type, Transaction transaction, json::value& jv) {
         return std::make_unique<SignalMessage>(type, transaction, jv);
     });
@@ -23,7 +23,6 @@ MessageHandler::MessageHandler(bool DEBUG) {
     creator_message->addMessageOnMap("raw", [](const std::string& type, Transaction transaction, json::value& jv) {
         return std::make_unique<RawMessage>(type, transaction, jv);
     });
-    if (!DEBUG) logger.setLevel(LogLevel::Error);
 }
 
 std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport_message) {

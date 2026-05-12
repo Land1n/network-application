@@ -52,8 +52,7 @@ ConnectedSocket SyncClientConnectionHandler::connect(int numTry)
 	boost::system::error_code ec;
 	for(int i = 1; i <= numTry; ++i) {
 		logger.log(LogLevel::Debug, __func__, "Try " + std::to_string(i));
-		auto socket = createSocket();
-		socket_client.ptr = socket;
+		socket_client.ptr = createSocket();
 		socket_client.ptr->connect(tcp::endpoint(boost::asio::ip::address::from_string(address), port), ec);
 		if(!ec) {
 			logger.log(LogLevel::Info, __func__,

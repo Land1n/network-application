@@ -211,6 +211,7 @@ std::shared_ptr<tcp::acceptor> SyncServerConnectionHandler::getAcceptor()
 }
 std::vector<ConnectedSocket>& SyncServerConnectionHandler::getSockets()
 {
+	std::lock_guard<std::mutex> lock(connection_data_mutex);
 	return connected_sockets_;
 }
 

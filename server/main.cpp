@@ -16,13 +16,12 @@ int main() {
     std::signal(SIGTERM, signal_handler);
 
     Network::ServerCreatorParams params;
-    params.port = 8080;
+    params.port = 8000;
     params.multiConnect = false;
-    params.logLevel = static_cast<uint32_t>(LogLevel::Info);
 
     SegmentServerCreator creator;
     auto server = creator.create(params);
-
+	Logger::getInstance().setLevel(LogLevel::Debug);
     server->setNewConnectionHandler([](Network::ConnectionId id) {
         std::cout << "[Server] New connection: " << id << std::endl;
     });

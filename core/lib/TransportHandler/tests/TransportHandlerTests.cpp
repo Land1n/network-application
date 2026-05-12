@@ -10,6 +10,8 @@
 #include "SyncServerConnectionHandler.hpp"
 #include "SyncClientConnectionHandler.hpp"
 
+#include "CreatorTransportHandler.hpp"
+
 namespace json = boost::json;
 
 class TransportHandlerTests : public ::testing::Test {
@@ -25,7 +27,7 @@ public:
 		Logger::getInstance().setLevel(LogLevel::NoLog);
 		server = std::make_shared<SyncServerConnectionHandler>(address, port);
 		client = std::make_shared<SyncClientConnectionHandler>(address, port);
-
+		client->connect();
 		server->start();
 		client->start();
 		server->listen();
@@ -36,24 +38,36 @@ public:
 		server->stop();
 		client->stop();
 	}
+
+	std::unique_ptr<BaseTransportHandler> CreateTransportHandler(std::shared_ptr<tcp::socket> socket)
+	{
+		ParamsCreatorTransportHandler params;
+		params.socket = socket;
+		params.type = TypeTransportHandler::Sync;
+		CreatorTransportHandler creator;
+		return creator.create(params);
+	}
 };
 
 TEST_F(TransportHandlerTests, SendAndReadOnSocketTest)
 {
 	std::vector<uint8_t> test_data = {1, 2, 3, 4, 8};
 
+
 	server->setTaskSocket([&](ConnectedSocket& cs) {
-		TransportHandler server_transport(cs.ptr);
-		TransportMessage msg = server_transport.read();
+		boost::system::error_code error;
+		auto handler = CreateTransportHandler(cs.ptr);
+		TransportMessage msg;
+		handler->read(msg,error);
 		EXPECT_EQ(msg.payload, test_data);
 	});
 
 	client->setTaskSocket([&](ConnectedSocket& cs) {
-		TransportHandler client_transport(cs.ptr);
+		boost::system::error_code error;
+		auto handler = CreateTransportHandler(cs.ptr);
 		TransportMessage msg;
 		msg.payload = test_data;
-		bool sent   = client_transport.write(msg);
-		EXPECT_TRUE(sent);
+		handler->write(msg,error);
 	});
 }
 // Тест на несколько последовательных сообщений
@@ -63,9 +77,12 @@ TEST_F(TransportHandlerTests, MultipleMessages)
 	const int expected_count = 5;
 
 	server->setTaskSocket([&](ConnectedSocket& cs) {
-		TransportHandler transport(cs.ptr); // cs.ptr вместо sock
+		auto transport  = CreateTransportHandler(cs.ptr);
 		for(int i = 0; i < expected_count; ++i) {
-			TransportMessage msg = transport.read();
+			TransportMessage msg;
+			boost::system::error_code error_code;
+
+			transport->read(msg,error_code);
 			if(!msg.type.empty()) {
 				received_count++;
 			}
@@ -74,9 +91,10 @@ TEST_F(TransportHandlerTests, MultipleMessages)
 
 	auto client_sock = client->connect();
 	ASSERT_NE(client_sock.ptr, nullptr);
-	TransportHandler client_transport(client_sock.ptr);
+	auto client_transport = CreateTransportHandler(client_sock.ptr);
 
 	for(int i = 0; i < expected_count; ++i) {
+		boost::system::error_code error_code;
 		boost::json::object obj;
 		obj["type"]          = "msg" + std::to_string(i);
 		obj["transaction"]   = 0;
@@ -85,8 +103,7 @@ TEST_F(TransportHandlerTests, MultipleMessages)
 		msg.type        = "msg" + std::to_string(i);
 		msg.transaction = Transaction::Request;
 		msg.payload.assign(json_str.begin(), json_str.end());
-		bool sent = client_transport.write(msg);
-		EXPECT_TRUE(sent);
+		client_transport->write(msg,error_code);
 	}
 	while(expected_count != received_count.load())
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -99,9 +116,11 @@ TEST_F(TransportHandlerTests, ConnectionLostDuringRead)
 	bool isStartRead = false;
 
 	server->setTaskSocket([&](ConnectedSocket& cs) {
-		TransportHandler transport(cs.ptr);
+		auto transport = CreateTransportHandler(cs.ptr);
+		boost::system::error_code error;
 		isStartRead = true;
-		TransportMessage msg = transport.read();
+		TransportMessage msg;
+		transport->read(msg,error);
 		EXPECT_EQ(msg.type, "error");
 		EXPECT_EQ(msg.transaction, Transaction::Error);
 	});
@@ -128,10 +147,13 @@ TEST_F(TransportHandlerTests, ManyClientsMessaging)
 	std::condition_variable server_handlers_cv;
 	server->setTaskSocket([&](ConnectedSocket& cs) {
 		server_handlers_active++;
-		TransportHandler transport(cs.ptr, 0xA0ABA0A);
+		auto transport = CreateTransportHandler(cs.ptr);
 		try {
 			while(true) {
-				TransportMessage req = transport.read();
+				boost::system::error_code error;
+				TransportMessage req;
+				transport->read(req,error);
+
 				if(req.transaction == Transaction::Error)
 					break;
 
@@ -149,7 +171,7 @@ TEST_F(TransportHandlerTests, ManyClientsMessaging)
 					std::string resp_json   = boost::json::serialize(resp_obj);
 					std::vector<uint8_t> resp_payload(resp_json.begin(), resp_json.end());
 					TransportMessage resp("pong", Transaction::Response, resp_payload);
-					transport.write(resp);
+					transport->write(resp,error);
 				}
 			}
 		}
@@ -172,11 +194,12 @@ TEST_F(TransportHandlerTests, ManyClientsMessaging)
 
 		client->start();
 
-		client->setTaskSocket([messages_per_client, &clients_finished, &finish_cv](ConnectedSocket& cs) {
-			TransportHandler transport(cs.ptr, 0xA0ABA0A);
+		client->setTaskSocket([&](ConnectedSocket& cs) {
+			auto transport = CreateTransportHandler(cs.ptr);
 			try {
 				for(int msg_id = 1; msg_id <= messages_per_client; ++msg_id) {
 					// Формируем JSON-запрос
+					boost::system::error_code error;
 
 					boost::json::object req_obj;
 					req_obj["type"]        = "ping";
@@ -185,11 +208,12 @@ TEST_F(TransportHandlerTests, ManyClientsMessaging)
 					std::string req_json   = boost::json::serialize(req_obj);
 					std::vector<uint8_t> req_payload(req_json.begin(), req_json.end());
 					TransportMessage req("ping", Transaction::Request, req_payload);
-					if(!transport.write(req))
-						break;
+					transport->write(req,error);
+					if(error) break;
 
 					// Читаем ответ
-					TransportMessage resp = transport.read();
+					TransportMessage resp;
+					transport->read(resp,error);
 					if(resp.type != "pong")
 						break;
 					std::string resp_json(resp.payload.begin(), resp.payload.end());

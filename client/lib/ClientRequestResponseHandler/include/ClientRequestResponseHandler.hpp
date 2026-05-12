@@ -7,9 +7,6 @@
 
 class ClientRequestResponseHandler : public RequestResponseHandlerBase {
 public:
-    explicit ClientRequestResponseHandler(std::shared_ptr<CreatorMessage> creator_message)
-        : RequestResponseHandlerBase(std::move(creator_message)) {
-    }
-
-    std::unique_ptr<Message> processingRequestResponse(std::unique_ptr<Message>) override;
+	explicit ClientRequestResponseHandler(const std::shared_ptr<CreatorMessage>& creator_message);
+	std::unique_ptr<Message> processingRequestResponse(const std::unique_ptr<Message>& ) override;
 };

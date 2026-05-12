@@ -9,14 +9,18 @@
 
 namespace json = boost::json;
 
-std::unique_ptr<Message> ClientRequestResponseHandler::processingRequestResponse(std::unique_ptr<Message> message) {
+ClientRequestResponseHandler::ClientRequestResponseHandler(const std::shared_ptr<CreatorMessage>& creator_message) :
+	RequestResponseHandlerBase(creator_message)
+{}
+
+std::unique_ptr<Message> ClientRequestResponseHandler::processingRequestResponse(const std::unique_ptr<Message>& message) {
     logger.log(LogLevel::Info, __func__,"Message type: " + message->type);
     logger.log(LogLevel::Info, __func__,"Processing new message...");
     if (message->transaction == Transaction::Request) {
         logger.log(LogLevel::Debug, __func__,
                     "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
         json::value jv;
-        logger.log(LogLevel::Warn, __func__, "Request message->type: " + message->type);
+        logger.log(LogLevel::Debug, __func__, "Request message->type: " + message->type);
         if (message->type == "signal") {
             std::string json_str = R"({
                 "type": "signal",
@@ -42,7 +46,7 @@ std::unique_ptr<Message> ClientRequestResponseHandler::processingRequestResponse
         auto new_message = creator_message->createMessage(message->type, Transaction::Request, jv);
         return new_message;
     } else if (message->transaction == Transaction::Response) {
-        return message;
+        return std::make_unique<Message>(message->type,message->transaction);
     }
     logger.log(LogLevel::Error, __func__,
                 "Unexpected transaction: " + std::to_string(static_cast<int>(message->transaction)));

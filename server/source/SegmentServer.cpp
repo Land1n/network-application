@@ -110,11 +110,15 @@ void SegmentServer::write(Network::ConnectionId id, const void* data, size_t sz)
 
 void SegmentServer::disconnect(Network::ConnectionId id)
 {
-	auto sock = connection_handler->findConnectedSocket(id);
-	if(sock.ptr) {
-		connection_handler->disconnected(sock, true);
-		if(closeHandler)
-			closeHandler(id);
+	try {
+		auto sock = connection_handler->findConnectedSocket(id);
+		if(sock.ptr) {
+			connection_handler->disconnected(sock, true);
+			if(closeHandler)
+				closeHandler(id);
+		}
+	} catch (const std::exception& e) {
+		logger.log(LogLevel::Error, __func__, "Socket not found");
 	}
 }
 
@@ -128,7 +132,7 @@ int SegmentServer::getAliveThreads()
 	return aliveThreads.load();
 }
 
-int SegmentServer::getConnectedClients()
+std::vector<ConnectedSocket> SegmentServer::getConnectedClients()
 {
-	return connection_handler->getSockets().size();
+	return connection_handler->getSockets();
 }

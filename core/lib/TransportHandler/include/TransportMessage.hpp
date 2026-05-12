@@ -10,7 +10,6 @@
 
 struct TransportMessage {
     TransportMessage() {};
-    TransportMessage(std::vector<uint8_t> &payload) : type(""), transaction(Transaction::Tests),payload(payload) {};
     TransportMessage(const std::string &type,Transaction transaction, std::vector<uint8_t> payload) : type(type),transaction(transaction), payload(payload) {};
     std::string type;
     Transaction transaction;

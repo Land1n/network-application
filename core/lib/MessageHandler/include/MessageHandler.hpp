@@ -13,7 +13,7 @@
 
 class MessageHandler {
 public:
-    MessageHandler(bool DEBUG = false);
+    MessageHandler();
 
     std::unique_ptr<Message> parse(const TransportMessage &transport_message);
     TransportMessage serialize(std::unique_ptr<Message> message);

@@ -28,7 +28,7 @@ public:
     void disconnect(Network::ConnectionId id) override;
     void setIdDistributionHandler(IdDistributionHandler h) override;
     int getAliveThreads();
-    int getConnectedClients();
+	std::vector<ConnectedSocket> getConnectedClients();
 private:
     const std::string address;
     const int port;

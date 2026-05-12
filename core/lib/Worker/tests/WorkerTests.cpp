@@ -96,7 +96,7 @@ TEST_F(WorkerTests, StopFalseDoTask) {
     bool taskCanFinish = false;
     worker.addTask([&]() {
         std::unique_lock<std::mutex> lock(mtx);
-        cv.wait(lock, [&] { return taskCanFinish; });
+        cv.wait_for (lock,std::chrono::seconds(3), [&] { return taskCanFinish; });
     });
     worker.stop(false);
     EXPECT_EQ(worker.getSizeQueue(),1);
