@@ -11,8 +11,7 @@ SyncClientConnectionHandler::SyncClientConnectionHandler(const std::string& addr
 
 SyncClientConnectionHandler::~SyncClientConnectionHandler()
 {
-	if(isWork.load())
-		stop();
+	stop();
 }
 
 
@@ -31,8 +30,8 @@ void SyncClientConnectionHandler::stop()
 		return;
 	isWork.store(false);
 	logger.log(LogLevel::Debug, __func__, "Stopping...");
-	connectionWorker.stop(true);
-	taskWorker.stop(true);
+	connectionWorker.flush();
+	taskWorker.flush();
 	if(socket_client.ptr && socket_client.ptr->is_open()) {
 		boost::system::error_code ec;
 		socket_client.ptr->close(ec);

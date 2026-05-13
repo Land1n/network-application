@@ -34,6 +34,7 @@ target_include_directories(TransportHandlerCore PUBLIC include)
 
 # Build the SyncTransportHandler subproject
 add_subdirectory(lib/SyncTransportHandler)
+add_subdirectory(lib/AsyncTransportHandler)
 
 # Factory library – knows about concrete handlers
 add_library(TransportHandlerFactory STATIC
@@ -42,6 +43,7 @@ add_library(TransportHandlerFactory STATIC
 target_link_libraries(TransportHandlerFactory PUBLIC
         TransportHandlerCore
         SyncTransportHandler
+        AsyncTransportHandler
 )
 target_include_directories(TransportHandlerFactory PUBLIC include)
 
@@ -51,6 +53,7 @@ target_link_libraries(TransportHandler INTERFACE
         TransportHandlerCore
         SyncTransportHandler
         TransportHandlerFactory
+        AsyncTransportHandler
 )
 
 add_subdirectory(tests)
