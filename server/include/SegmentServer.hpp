@@ -6,7 +6,7 @@
 
 #include "../../clientserveriface/include/clientserveriface/server.h"
 #include "MessageHandler.hpp"
-#include "TransportHandler.hpp"
+#include "../../core/lib/TransportHandler/include/TransportHandler/TransportHandler.hpp"
 #include "ServerRequestResponseHandler.hpp"
 #include "Logger.hpp"
 #include "SyncServerConnectionHandler.hpp"

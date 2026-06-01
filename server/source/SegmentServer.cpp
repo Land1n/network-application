@@ -3,13 +3,13 @@
 //
 
 #include "SegmentServer.hpp"
-#include "TransportHandler.hpp"
+#include "../../core/lib/TransportHandler/include/TransportHandler/TransportHandler.hpp"
 // server/source/SegmentServer.cpp
 #include "SegmentServer.hpp"
 
 #include <queue>
 
-#include "TransportHandler.hpp"
+#include "../../core/lib/TransportHandler/include/TransportHandler/TransportHandler.hpp"
 #include <boost/asio.hpp>
 #include <boost/json.hpp>
 #include <thread>

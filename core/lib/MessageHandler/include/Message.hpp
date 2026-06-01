@@ -5,7 +5,7 @@
 #include <string>
 #include <boost/json.hpp>
 
-#include "Transaction.hpp"
+#include "../../TransportHandler/include/TransportHandler/Transaction.hpp"
 
 namespace json = boost::json;
 

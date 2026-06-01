@@ -7,7 +7,7 @@
 #include "SyncClientConnectionHandler.hpp"
 #include "Logger.hpp"
 #include "MessageHandler.hpp"
-#include "TransportHandler.hpp"
+#include "../../core/lib/TransportHandler/include/TransportHandler/TransportHandler.hpp"
 #include "ClientRequestResponseHandler.hpp"
 
 #include <mutex>

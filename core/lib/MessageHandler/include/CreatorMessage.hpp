@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <functional>
 #include "Message.hpp"
-#include "Transaction.hpp"
+#include "../../TransportHandler/include/TransportHandler/Transaction.hpp"
 
 namespace json = boost::json;
 

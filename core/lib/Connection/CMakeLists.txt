@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(TransportHandler)
+project(Connection)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,14 +10,16 @@ find_package(Boost REQUIRED COMPONENTS system)
 
 file(GLOB SOURCES "include/*/*.hpp" "source/*/*.cpp")
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES})
+
+add_library(${PROJECT_NAME} SHARED ${SOURCES}
+        source/AcceptHandler/AcceptHandler.cpp)
+
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
-        Boost::json
         ErrorHandler
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-#add_subdirectory(tests)
+add_subdirectory(tests)

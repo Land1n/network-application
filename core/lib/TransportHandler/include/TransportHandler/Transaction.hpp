@@ -8,7 +8,7 @@ enum class Transaction {
     Request = 0,
     Response = 1,
     Tests = 2,
-    Error
+    Error = -1
 };
 
 Transaction setTypeTransaction(int integer);

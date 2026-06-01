@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include "TransportMessage.hpp"
+#include "../../TransportHandler/include/TransportHandler/TransportMessage.hpp"
 #include "Message.hpp"
 #include "CreatorMessage.hpp"
 #include "Logger.hpp"

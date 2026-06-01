@@ -10,13 +10,15 @@ find_package(Boost REQUIRED COMPONENTS system thread json chrono)
 
 set(PARENT_PROJECT ON)
 
-add_subdirectory(core/lib/BaseConnectionHandler)
+#add_subdirectory(core/lib/BaseConnectionHandler)
+add_subdirectory(core/lib/ErrorHandler)
+add_subdirectory(core/lib/Connection)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/Logger)
 add_subdirectory(core/lib/MessageHandler)
-add_subdirectory(core/lib/RequestResponseHandler)
-add_subdirectory(server)
-add_subdirectory(client)
+#add_subdirectory(core/lib/RequestResponseHandler)
+#add_subdirectory(server)
+#add_subdirectory(client)
 add_subdirectory(clientserveriface)
 add_subdirectory(core/lib/Worker)
 
@@ -30,7 +32,9 @@ file(GLOB_RECURSE TEST_SOURCES
 list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 
-add_executable(all_tests ${TEST_SOURCES})
+add_executable(all_tests ${TEST_SOURCES}
+        core/lib/Connection/tests/AcceptHandler.cpp
+        core/lib/Connection/tests/AcceptConnectionHandlerTests.cpp)
 
 file(GLOB_RECURSE INCLUDE_DIRS
         "core/lib/*/include"
@@ -49,10 +53,11 @@ target_link_libraries(all_tests PRIVATE
         Boost::chrono
         Worker
         Logger
+        Connection
         TransportHandler
         MessageHandler
-        ServerRequestResponseHandler
-        SegmentServerCore
+#        ServerRequestResponseHandler
+#        SegmentServerCore
 )
 
 enable_testing()
