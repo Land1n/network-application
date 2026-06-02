@@ -17,6 +17,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
         Logger
+        Utils
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)

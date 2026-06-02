@@ -15,7 +15,6 @@
 // #include "SyncClientConnectionHandler.hpp"
 //
 // using namespace std::chrono_literals;
-// // TODO: не понятно почему ломается теcт, при использовании valgrind пишет:
 // /*
 // * ==30759==  If you believe this happened as a result of a stack
 // ==30759==  overflow in your program's main thread (unlikely but
@@ -151,7 +150,6 @@
 // 	client_two->stop();
 // }
 //
-// // + TODO: убедиться, что не создаем больше потоков, чем есть сокетов в тесте
 // /// (отследить по логам либо (рекомендуется) по счетчиу вызова callback
 // TEST_F(SegmentServerTest, ChechCounterThread)
 // {
@@ -185,7 +183,7 @@
 // 	for(auto client: clients)
 // 		client->stop();
 // }
-// /// + TODO: тест записываем много сообщенй в сокет (следиим, чтобы они не успеи все обработаться), потом выполняем
+
 // /// дисконнект
 // /*
 // * Что проверяет тест

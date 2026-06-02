@@ -7,7 +7,7 @@
 
 #include "Logger.hpp"
 
-// + TODO: допилить (потоки с разной задержкой)
+
 class CaptureStdout {
 public:
     CaptureStdout() : old_buf(std::cout.rdbuf()), ss() {

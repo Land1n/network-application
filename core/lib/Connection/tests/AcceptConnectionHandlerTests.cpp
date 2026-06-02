@@ -34,33 +34,37 @@ public:
 			socket_client.reset();
 		}
 	}
+
 };
 
-
+inline void expect_success(error_code ec) { EXPECT_FALSE(ec); }
+inline void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
 TEST_F(AcceptConnectionHandlerTests, AllSyncConnectAndAccept)
 {
-	ConnectionHandler connection_handler(*socket_client,TypeConnectionHandler::Sync);
-	AcceptHandler accept_handler(io_server,endpoint,TypeAcceptHandler::Sync);
+	ConnectionHandler connection_handler(*socket_client);
+	AcceptHandler accept_handler(io_server,endpoint);
+	connection_handler.setOnConnect(expect_success);
+	connection_handler.setOnDisconnect(expect_success);
+	accept_handler.setOnAccept(expect_success);
 
 	std::thread t([&]() {
-		accept_handler.accept(*socket_server);
+		accept_handler.accept(*socket_server,IOMode::Sync);
 	});
-	connection_handler.connect(endpoint);
+	connection_handler.connect(endpoint,IOMode::Sync);
 	t.join();
 }
 
 TEST_F(AcceptConnectionHandlerTests, AllAsyncConnectAndAccept)
 {
-	auto connection_handler = std::make_shared<ConnectionHandler>(*socket_client,TypeConnectionHandler::Async);
-	connection_handler->setCallback([](error_code ec) {
-		EXPECT_FALSE(ec);
-	});
-	auto accept_handler = std::make_shared<AcceptHandler>(io_server,endpoint,TypeAcceptHandler::Async);
-	accept_handler->setCallback([](error_code ec){
-		EXPECT_FALSE(ec);
-	});
-	connection_handler->connect(endpoint);
+	auto connection_handler = std::make_shared<ConnectionHandler>(*socket_client);
+	auto accept_handler = std::make_shared<AcceptHandler>(io_server,endpoint);
+
+	connection_handler->setOnConnect(expect_success);
+	connection_handler->setOnDisconnect(expect_success);
+	accept_handler->setOnAccept(expect_success);
+
+	connection_handler->connect(endpoint,IOMode::Async);
 	io_client.run();
-	accept_handler->accept(*socket_server);
+	accept_handler->accept(*socket_server,IOMode::Async);
 	io_server.run();
 }

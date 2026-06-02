@@ -11,26 +11,31 @@ void log(LogLevel level, const std::string& function_name, const error_code& ec)
 	Logger::getInstance().log(level, function_name, "Code = [ " + ec.message() + " ]");
 }
 
-bool ErrorHandler::check_error(const error_code& ec, const std::string& function_name)
+bool ErrorHandler::check_error(const error_code& ec, const std::string& function_name, bool viewInfo)
 {
 	if(!ec) {
-		log(LogLevel::Info, function_name,ec);
-	} else if (ec == boost::asio::error::address_in_use) {
-		log(LogLevel::Warn, function_name,ec);
+		if (viewInfo) {
+			log(LogLevel::Info, function_name,ec);
+		} else {
+			log(LogLevel::Debug, function_name,ec);
+		}
+		return false;
 	}
-	else if (ec == boost::json::error::syntax) {
+	if (ec == boost::asio::error::address_in_use) {
+		log(LogLevel::Warn, function_name,ec);
+		return false;
+	}
+	if (ec == boost::json::error::syntax) {
 		log(LogLevel::Error, function_name,ec);
 		return false;
 	}
-	else if(ec == boost::asio::error::eof) {
+	if(ec == boost::asio::error::eof) {
 		Logger::getInstance().log(LogLevel::Info, function_name, "Connection lost");
-		return false;
-	} else if (ec == boost::asio::error::connection_refused) {
+		return true;
+	}
+	if (ec == boost::asio::error::connection_refused) {
 		log(LogLevel::Error, function_name,ec);
 		return false;
-	}
-	else {
-		log(LogLevel::Warn, function_name,ec);
 	}
 	return true;
 }

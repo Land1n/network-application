@@ -12,7 +12,9 @@ set(PARENT_PROJECT ON)
 
 #add_subdirectory(core/lib/BaseConnectionHandler)
 add_subdirectory(core/lib/ErrorHandler)
+add_subdirectory(core/lib/Utils)
 add_subdirectory(core/lib/Connection)
+add_subdirectory(core/lib/Session)
 add_subdirectory(core/lib/TransportHandler)
 add_subdirectory(core/lib/Logger)
 add_subdirectory(core/lib/MessageHandler)
@@ -32,9 +34,7 @@ file(GLOB_RECURSE TEST_SOURCES
 list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 
-add_executable(all_tests ${TEST_SOURCES}
-        core/lib/Connection/tests/AcceptHandler.cpp
-        core/lib/Connection/tests/AcceptConnectionHandlerTests.cpp)
+add_executable(all_tests ${TEST_SOURCES})
 
 file(GLOB_RECURSE INCLUDE_DIRS
         "core/lib/*/include"
@@ -51,11 +51,13 @@ target_link_libraries(all_tests PRIVATE
         Boost::thread
         Boost::json
         Boost::chrono
+        Utils
         Worker
         Logger
         Connection
         TransportHandler
         MessageHandler
+        Session
 #        ServerRequestResponseHandler
 #        SegmentServerCore
 )

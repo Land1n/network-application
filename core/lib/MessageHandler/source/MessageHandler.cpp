@@ -40,9 +40,9 @@ std::unique_ptr<Message> MessageHandler::parse(const TransportMessage &transport
     return message;
 }
 
-TransportMessage MessageHandler::serialize(std::unique_ptr<Message> message) {
-    if (!message) return TransportMessage();
-    std::string json_str = json::serialize(message->serialize());
-    std::vector<uint8_t> bytes(json_str.begin(), json_str.end());
-    return TransportMessage(message->type, message->transaction, bytes);
+TransportMessage MessageHandler::serialize(const std::unique_ptr<Message>& message) {
+	if (!message) return TransportMessage();
+	std::string json_str = json::serialize(message->serialize());
+	std::vector<uint8_t> bytes(json_str.begin(), json_str.end());
+	return TransportMessage(message->type, message->transaction, bytes);
 }

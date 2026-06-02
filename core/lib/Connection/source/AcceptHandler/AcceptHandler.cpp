@@ -3,28 +3,28 @@
 //
 #include "AcceptHandler/AcceptHandler.hpp"
 
-AcceptHandler::AcceptHandler(boost::asio::io_context& io, const std::string& address,unsigned int port,
-                             TypeAcceptHandler type) :
-    acceptor(io), type(type)
+AcceptHandler::AcceptHandler(boost::asio::io_context& io, const std::string& address, unsigned int port) : acceptor(io)
 {
 	setOptionAcceptor(address, port);
 }
-AcceptHandler::AcceptHandler(boost::asio::io_context& io, const tcp::endpoint& endpoint, TypeAcceptHandler type) :
-	acceptor(io), type(type)
+AcceptHandler::AcceptHandler(boost::asio::io_context& io, const tcp::endpoint& endpoint) : acceptor(io)
 {
 	setOptionAcceptor(endpoint);
 }
-
 
 AcceptHandler::~AcceptHandler()
 {
 	close();
 }
 
-void AcceptHandler::setCallback(const AsyncCallBack& c)
+void AcceptHandler::setOnAccept(const CallBack& c)
 {
-	callback = c;
-};
+	onAccept = c;
+}
+void AcceptHandler::setOnClose(const CallBack& c)
+{
+	onClose = c;
+}
 
 void AcceptHandler::setOptionAcceptor(const std::string& address, int port)
 {
@@ -41,12 +41,12 @@ void AcceptHandler::setOptionAcceptor(const tcp::endpoint& endpoint)
 	acceptor.listen();
 }
 
-void AcceptHandler::accept(tcp::socket& socket)
+void AcceptHandler::accept(tcp::socket& socket, IOMode mode)
 {
-	if(type == TypeAcceptHandler::Sync) {
+	if(mode == IOMode::Sync) {
 		sync_accept(socket);
 	}
-	else if(type == TypeAcceptHandler::Async) {
+	else {
 		async_accept(socket);
 	}
 }
@@ -54,29 +54,28 @@ void AcceptHandler::sync_accept(tcp::socket& socket)
 {
 	error_code ec;
 	acceptor.accept(socket, ec);
+	if (onAccept)
+		onAccept(ec);
 	ErrorHandler::check_error(ec, "AcceptHandler::accept.sync");
 }
 void AcceptHandler::async_accept(tcp::socket& socket)
 {
-	auto self = shared_from_this();
-	acceptor.async_accept(socket, [this, self, &socket](error_code ec) {
+	auto self    = shared_from_this();
+	acceptor.async_accept(socket, [this, self](error_code ec) {
 		ErrorHandler::check_error(ec, "AcceptHandler::accept.async");
-		if(callback) {
-			callback(ec);
-			ErrorHandler::check_error(ec, "AcceptHandler::accept.async{Callback}");
-		}
+		if(onAccept)
+			onAccept(ec);
 	});
 }
-
 void AcceptHandler::close()
 {
-	boost::system::error_code ec;
-	if(type == TypeAcceptHandler::Async) {
+	error_code ec;
+	std::promise<error_code> promise;
+	if(acceptor.is_open()) {
 		acceptor.cancel(ec);
 		ErrorHandler::check_error(ec, "AcceptHandler::cancel");
-	}
-	if(acceptor.is_open()) {
 		acceptor.close(ec);
+		if (onClose) onClose(ec);
 		ErrorHandler::check_error(ec, "AcceptHandler::close");
 	}
 }

@@ -23,7 +23,7 @@ LogEvent::LogEvent(LogLevel lvl, const std::string &name_logger,
 std::string LogEvent::formatEvent() const {
     const std::string resetColor = "\033[0m ";
     std::string color = levelToColor(level);
-    return (boost::format("%s[%s] [%-8s] [%5d] [%-20s] [%-21s] %s%s")
+    return (boost::format("%s[%s] [%-8s] [%5d] [%-20s] [%-45s] %s%s")
             % color
             % formatTime(time)
             % levelToString(level)

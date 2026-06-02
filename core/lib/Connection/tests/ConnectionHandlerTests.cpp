@@ -12,6 +12,8 @@ public:
 	std::unique_ptr<tcp::acceptor> acceptor;
 	tcp::endpoint endpoint = tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), 8000);
 	std::unique_ptr<tcp::socket> socket;
+
+	std::shared_ptr<ConnectionHandler> ch;
 	void SetUp() override
 	{
 		acceptor = std::make_unique<tcp::acceptor>(context);
@@ -19,6 +21,8 @@ public:
 		acceptor->set_option(tcp::acceptor::reuse_address(true));
 		acceptor->bind(endpoint);
 		socket = std::make_unique<tcp::socket>(context);
+
+		ch = std::make_shared<ConnectionHandler>(*socket);
 	}
 	void TearDown() override
 	{
@@ -26,70 +30,63 @@ public:
 		acceptor->close();
 		if(socket->is_open())
 			socket->close();
+
+		if (ch != nullptr) {
+			ch->disconnect();
+			ch.reset();
+		}
 	}
 
 	void listenAcceptor()
 	{
 		acceptor->listen();
 	}
-
-	bool check_error(tcp::socket& socket)
-	{
-		error_code ec;
-		boost::asio::write(socket, boost::asio::buffer(std::string("1")), ec);
-		return ec.value();
-	}
+	static void expect_success(error_code ec) { EXPECT_FALSE(ec); }
+	static void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
 };
-
 TEST_F(ConnectionHandlerTests, SyncConnectAndDisconnectSuccess)
 {
 	listenAcceptor();
-
-	auto ch = std::make_shared<ConnectionHandler>(*socket, TypeConnectionHandler::Sync);
-	ch->connect("127.0.0.1", 8000);
-	EXPECT_FALSE(check_error(*socket));
+	ch->setOnConnect(expect_success);
+	ch->setOnDisconnect(expect_success);
+	ch->connect("127.0.0.1", 8000, IOMode::Sync);
 	ch->disconnect();
-	EXPECT_TRUE(check_error(*socket));
 }
 
 TEST_F(ConnectionHandlerTests, AsyncConnectAndDisconnectSuccess)
 {
 	listenAcceptor();
-
-	auto ch = std::make_shared<ConnectionHandler>(*socket, TypeConnectionHandler::Async);
-	ch->setCallback([&](error_code ec) {
-		EXPECT_FALSE(ec);
-		EXPECT_FALSE(check_error(*socket));
+	ch->setOnDisconnect(expect_success);
+	ch->setOnConnect([this](error_code error_code) {
+		expect_success(error_code);
 		ch->disconnect();
-		EXPECT_TRUE(check_error(*socket));
+
 	});
-	ch->connect("127.0.0.1", 8000);
+
+	ch->connect("127.0.0.1", 8000,IOMode::Async);
 	context.run();
 }
 TEST_F(ConnectionHandlerTests, SyncConnectAndDisconnectFailure)
 {
-	auto ch = std::make_shared<ConnectionHandler>(*socket, TypeConnectionHandler::Sync);
-	ch->connect("127.0.0.1", 8000);
-	EXPECT_TRUE(check_error(*socket));
-	EXPECT_FALSE(socket->is_open());
+	ch->setOnConnect(expect_failure);
+	ch->connect("127.0.0.1", 8000,IOMode::Sync);
 }
 
 TEST_F(ConnectionHandlerTests, AsyncConnectAndDisconnectFailure)
 {
-	auto ch = std::make_shared<ConnectionHandler>(*socket, TypeConnectionHandler::Async);
-	ch->connect("127.0.0.1", 8000);
+	ch->setOnConnect(expect_failure);
+	ch->connect("127.0.0.1", 8000,IOMode::Async);
 	context.run();
-	EXPECT_TRUE(check_error(*socket));
-	EXPECT_FALSE(socket->is_open());
 }
 
 TEST_F(ConnectionHandlerTests,AsyncConnectAndThrow)
 {
 	listenAcceptor();
-	auto ch = std::make_shared<ConnectionHandler>(*socket, TypeConnectionHandler::Async);
-	ch->setCallback([&](error_code ec) {
+	ch->setOnConnect([&](error_code ec) {
+		expect_success(ec);
 		throw std::runtime_error("test error");
 	});
-	ch->connect("127.0.0.1", 8000);
+	ch->connect("127.0.0.1", 8000,IOMode::Async);
 	context.run();
+
 }

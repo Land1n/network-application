@@ -16,7 +16,7 @@ public:
     MessageHandler();
 
     std::unique_ptr<Message> parse(const TransportMessage &transport_message);
-    TransportMessage serialize(std::unique_ptr<Message> message);
+    TransportMessage serialize(const std::unique_ptr<Message>& message);
 
     std::shared_ptr<CreatorMessage> creator_message = std::make_shared<CreatorMessage>();
 private:

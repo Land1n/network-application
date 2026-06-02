@@ -31,13 +31,16 @@ public:
 			socket_client.reset();
 		}
 	}
+	static void expect_success(error_code ec) { EXPECT_FALSE(ec); }
+	static void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
 };
 
 TEST_F(AcceptHandlerTests, SyncAcceptSuccesful)
 {
-	AcceptHandler acceptor(io_server, endpoint, TypeAcceptHandler::Sync);
+	AcceptHandler acceptor(io_server, endpoint);
 	std::thread t([&] {
-		acceptor.accept(*socket_server);
+		acceptor.accept(*socket_server,IOMode::Sync);
+		acceptor.setOnAccept(expect_success);
 	});
 	error_code ec;
 	socket_client->connect(endpoint, ec);
@@ -47,17 +50,16 @@ TEST_F(AcceptHandlerTests, SyncAcceptSuccesful)
 
 TEST_F(AcceptHandlerTests, AsyncAcceptSuccesful)
 {
-	auto acceptor = std::make_shared<AcceptHandler>(io_server, endpoint, TypeAcceptHandler::Async);
-
-	acceptor->setCallback([](error_code ec) {
+	auto acceptor = std::make_shared<AcceptHandler>(io_server, endpoint);
+	acceptor->setOnAccept([](error_code ec) {
 		EXPECT_FALSE(ec);
 	});
-	acceptor->accept(*socket_server);
+	acceptor->accept(*socket_server,IOMode::Async);
 	std::thread t([&] {
 		io_server.run();
 	});
-	error_code ec;
-	socket_client->connect(endpoint, ec);
-	EXPECT_FALSE(ec);
+	error_code ec1;
+	socket_client->connect(endpoint, ec1);
+	EXPECT_FALSE(ec1);
 	t.join();
 }

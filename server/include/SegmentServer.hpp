@@ -13,7 +13,6 @@
 
 #include <unordered_map>
 #include <mutex>
-// + TODO:multiConnect
 class SegmentServer : public Network::Server {
 public:
     SegmentServer(const std::string& address, int port,bool multiConnect);

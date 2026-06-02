@@ -6,35 +6,26 @@
 #include <boost/asio.hpp>
 
 #include "ErrorHandler/ErrorHandler.hpp"
-
-
-enum class TypeAcceptHandler {
-	Sync = 0,
-	Async = 1,
-};
-
-using tcp = boost::asio::ip::tcp;
-using AsyncCallBack = std::function<void(error_code)>;
-
+#include "utils.hpp"
 
 class AcceptHandler : public std::enable_shared_from_this<AcceptHandler>{
 public:
-	AcceptHandler(boost::asio::io_context& io,const std::string & address, unsigned int port,TypeAcceptHandler type);
-	AcceptHandler(boost::asio::io_context& io,const tcp::endpoint& ,TypeAcceptHandler type);
+	AcceptHandler(boost::asio::io_context& io,const std::string & address, unsigned int port);
+	AcceptHandler(boost::asio::io_context& io,const tcp::endpoint&);
 	~AcceptHandler();
-	void accept(tcp::socket& socket);
+	void accept(tcp::socket& socket,IOMode);
+	void close();
 
-	void setCallback(const AsyncCallBack& callback);
+	void setOnAccept(const CallBack& callback);
+	void setOnClose(const CallBack& callback);
 protected:
 	void sync_accept(tcp::socket& socket);
 	void async_accept(tcp::socket& socket);
-	void close();
 
 	void setOptionAcceptor(const std::string& address, int port);
 	void setOptionAcceptor(const tcp::endpoint& endpoint);
 
-	AsyncCallBack callback;
-	TypeAcceptHandler type;
-
+	CallBack onAccept;
+	CallBack onClose;
 	tcp::acceptor acceptor;
 };

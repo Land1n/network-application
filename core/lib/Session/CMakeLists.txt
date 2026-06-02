@@ -16,7 +16,10 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
-        ConnectionHandler
+        Connection
+        TransportHandler
+        MessageHandler
+        Worker
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
