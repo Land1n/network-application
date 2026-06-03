@@ -35,12 +35,12 @@ public:
 	}
 	void TearDown() override
 	{
-		if (acceptor && acceptor->is_open()) {
+		if(acceptor && acceptor->is_open()) {
 			boost::system::error_code ec;
 			acceptor->cancel(ec);
 			acceptor->close(ec);
 		}
-		if (server_socket && server_socket->is_open()) {
+		if(server_socket && server_socket->is_open()) {
 			boost::system::error_code ec;
 			server_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
 			server_socket->close(ec);
@@ -53,27 +53,35 @@ public:
 		server_socket.reset();
 		client_socket.reset();
 	}
-	std::shared_ptr<ConnectionHandler> create_connection_handler(IOMode mode,const CallBack& callback)
+	std::shared_ptr<ConnectionHandler> create_connection_handler(IOMode mode, const CallBack& callback)
 	{
 		auto connection_handler = std::make_shared<ConnectionHandler>(*client_socket);
 		connection_handler->setOnConnect(callback);
 		error_code ec;
-		connection_handler->connect(endpoint,mode);
+		connection_handler->connect(endpoint, mode);
 		client_context.run();
 		return connection_handler;
 	}
 	std::shared_ptr<ConnectionHandler> create_connection_handler(IOMode type)
 	{
-		return create_connection_handler(type,[](error_code) {});
+		return create_connection_handler(type, [](error_code) {
+		});
 	}
 
 	TransportMessage create_test_message()
 	{
 		std::string json_str = R"({"type":"test","transaction":2})";
 		std::vector<uint8_t> payload(json_str.begin(), json_str.end());
-		return TransportMessage("test",Transaction::Tests,payload);
+		return TransportMessage("test", Transaction::Tests, payload);
 	};
-
+	static void expect_success(error_code ec, TransportMessage tm)
+	{
+		EXPECT_FALSE(ec);
+	}
+	static void expect_failure(error_code ec, TransportMessage tm)
+	{
+		EXPECT_TRUE(ec);
+	}
 };
 
 TEST_F(TransportHandlerTests, SyncWriteSuccsesful)
@@ -82,65 +90,64 @@ TEST_F(TransportHandlerTests, SyncWriteSuccsesful)
 	error_code error;
 
 	TransportHandler transport_handler(*client_socket);
-	auto f_ec = transport_handler.write(create_test_message(),IOMode::Sync);
-
-	EXPECT_FALSE(f_ec.get());
-
+	transport_handler.setOnAllWrite(expect_success);
+	transport_handler.write(create_test_message(), IOMode::Sync);
 }
 
 TEST_F(TransportHandlerTests, AsyncWriteSuccsesful)
 {
 	TransportHandler transport_handler(*client_socket);
-	std::future<error_code> f_ec;
-	create_connection_handler(IOMode::Async,[&](error_code error) {
-		f_ec = transport_handler.write(create_test_message(),IOMode::Async);
+	transport_handler.setOnAllWrite(expect_success);
+	create_connection_handler(IOMode::Async, [&](error_code error) {
+		transport_handler.write(create_test_message(), IOMode::Async);
 		EXPECT_FALSE(error);
 	});
-	EXPECT_FALSE(f_ec.get());
 }
 TEST_F(TransportHandlerTests, SyncWriteAndReadSuccsesful)
 {
-
-	auto con = create_connection_handler(IOMode::Sync);
+	auto con                           = create_connection_handler(IOMode::Sync);
 	TransportMessage for_write_message = create_test_message();
 	error_code error;
 
 	TransportHandler transport_handler(*client_socket);
-	auto f_ec_w = transport_handler.write(for_write_message,IOMode::Sync);
+	transport_handler.setOnAllWrite(expect_success);
+	transport_handler.write(for_write_message, IOMode::Sync);
 
 	TransportHandler transport_handler_server(*server_socket);
+	transport_handler_server.setOnAllRead([&for_write_message](error_code error, TransportMessage for_read_message) {
+		EXPECT_FALSE(error);
+		EXPECT_EQ(for_read_message.type, for_write_message.type);
+		EXPECT_EQ(for_read_message.transaction, for_write_message.transaction);
+		EXPECT_EQ(for_read_message.payload, for_write_message.payload);
+	});
 	TransportMessage for_read_message;
 
-	auto f_ec_r = transport_handler_server.read(for_read_message,IOMode::Sync);
-	EXPECT_FALSE(f_ec_w.get());
-	EXPECT_FALSE(f_ec_r.get());
-	EXPECT_EQ(for_read_message.type, for_write_message.type);
-	EXPECT_EQ(for_read_message.transaction, for_write_message.transaction);
-	EXPECT_EQ(for_read_message.payload, for_write_message.payload);
+	transport_handler_server.read(for_read_message, IOMode::Sync);
 }
 
 TEST_F(TransportHandlerTests, AsyncWriteAndReadSuccsesful)
 {
-
 	TransportHandler transport_handler(*client_socket);
+	transport_handler.setOnAllWrite(expect_success);
 	auto for_write_message = create_test_message();
 	std::future<error_code> f_ec_w;
-	create_connection_handler(IOMode::Async,[&](error_code error) {
-		f_ec_w = transport_handler.write(for_write_message,IOMode::Async);
+	create_connection_handler(IOMode::Async, [&](error_code error) {
+		transport_handler.write(for_write_message, IOMode::Async);
 		EXPECT_FALSE(error);
 	});
 	client_context.run();
 	error_code error;
 	TransportHandler transport_handler_server(*server_socket);
 	TransportMessage for_read_message;
+	transport_handler_server.setOnAllRead([&for_write_message](error_code error, TransportMessage for_read_message) {
+		EXPECT_FALSE(error);
+		EXPECT_EQ(for_read_message.type, for_write_message.type);
+		EXPECT_EQ(for_read_message.transaction, for_write_message.transaction);
+		EXPECT_EQ(for_read_message.payload, for_write_message.payload);
+	});
 
-	auto f_ec_r = transport_handler_server.read(for_read_message,IOMode::Async);
+	transport_handler_server.read(for_read_message, IOMode::Async);
 	server_context.run();
-	EXPECT_FALSE(f_ec_w.get());
-	EXPECT_FALSE(f_ec_r.get());
-	EXPECT_EQ(for_read_message.type, for_write_message.type);
-	EXPECT_EQ(for_read_message.transaction, for_write_message.transaction);
-	EXPECT_EQ(for_read_message.payload, for_write_message.payload);
 }
 
 // TEST_F(TransportHandlerTests, SendAndReadOnSocketTest)

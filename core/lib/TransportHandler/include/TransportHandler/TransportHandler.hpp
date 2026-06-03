@@ -13,8 +13,10 @@ class TransportHandler {
 public:
 	TransportHandler(tcp::socket& socket);
 
-	std::future<error_code> read(TransportMessage& in_message, IOMode mode);
-	std::future<error_code> write(const TransportMessage& out_message, IOMode mode);
+	void read(TransportMessage& in_message, IOMode mode);
+	void write(const TransportMessage& out_message, IOMode mode);
+
+	void setOnError(std::function<void()> handler);
 
 	void setMagicNumber(uint32_t magicNumber);
 	void setOnReadHandler(std::function<void(size_t id, const void*, size_t)> handler);
@@ -33,8 +35,5 @@ protected:
 	std::function<void(error_code,TransportMessage)> onAllWrite;
 	std::function<void(error_code,TransportMessage)> onAllRead;
 
-	std::future<error_code>  sync_read(TransportMessage& in_message);
-
-	std::future<error_code>  async_read(TransportMessage& in_message);
-
+	std::function<void()> onError;
 };

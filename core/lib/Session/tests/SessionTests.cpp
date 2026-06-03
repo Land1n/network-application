@@ -7,7 +7,7 @@
 
 #include "AcceptHandler/AcceptHandler.hpp"
 // TODO: + Enum
-// TODO: Блоки кода
+// TODO: - Блоки кода
 // TODO: +- sync vs async
 
 // TODO: hasError ( при при обращении к сесси если true удаляем из SM)
