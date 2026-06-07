@@ -7,21 +7,22 @@
 #include "AcceptHandler/AcceptHandler.hpp"
 #include "ConnectionHandler/ConnectionHandler.hpp"
 
+#include "IOContextHandler/IOContextHandler.hpp"
 
 class AcceptConnectionHandlerTests : public ::testing::Test {
 public:
-	boost::asio::io_context io_server;
-	boost::asio::io_context io_client;
+	IOContextHandler io_server;
+	IOContextHandler io_client;
 
-	std::unique_ptr<tcp::socket> socket_client;
-	std::unique_ptr<tcp::socket> socket_server;
+	std::shared_ptr<tcp::socket> socket_client;
+	std::shared_ptr<tcp::socket> socket_server;
 
 	tcp::endpoint endpoint = tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), 8000);
 
 	void SetUp() override
 	{
-		socket_client = std::make_unique<tcp::socket>(io_client);
-		socket_server = std::make_unique<tcp::socket>(io_server);
+		socket_client = std::make_shared<tcp::socket>(io_client.getIOContext());
+		socket_server = std::make_shared<tcp::socket>(io_server.getIOContext());
 	}
 	void TearDown() override
 	{
@@ -34,37 +35,50 @@ public:
 			socket_client.reset();
 		}
 	}
-
 };
 
-inline void expect_success(error_code ec) { EXPECT_FALSE(ec); }
-inline void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
+inline void expect_success(error_code ec)
+{
+	EXPECT_FALSE(ec);
+}
+inline void expect_failure(error_code ec)
+{
+	EXPECT_TRUE(ec);
+}
 TEST_F(AcceptConnectionHandlerTests, AllSyncConnectAndAccept)
 {
-	ConnectionHandler connection_handler(*socket_client);
-	AcceptHandler accept_handler(io_server,endpoint);
+	ConnectionHandler connection_handler(socket_client);
+	AcceptHandler accept_handler(io_server.getIOContext(), endpoint);
 	connection_handler.setOnConnect(expect_success);
 	connection_handler.setOnDisconnect(expect_success);
 	accept_handler.setOnAccept(expect_success);
 
 	std::thread t([&]() {
-		accept_handler.accept(*socket_server,IOMode::Sync);
+		accept_handler.accept(socket_server, IOMode::Sync);
 	});
-	connection_handler.connect(endpoint,IOMode::Sync);
+	connection_handler.connect(endpoint, IOMode::Sync);
 	t.join();
 }
 
 TEST_F(AcceptConnectionHandlerTests, AllAsyncConnectAndAccept)
 {
-	auto connection_handler = std::make_shared<ConnectionHandler>(*socket_client);
-	auto accept_handler = std::make_shared<AcceptHandler>(io_server,endpoint);
+	ConnectionHandler connection_handler(socket_client);
+	AcceptHandler accept_handler(io_server.getIOContext(), endpoint);
 
-	connection_handler->setOnConnect(expect_success);
-	connection_handler->setOnDisconnect(expect_success);
-	accept_handler->setOnAccept(expect_success);
+	std::promise<void> connect_done;
+	std::promise<void> accept_done;
+	connection_handler.setOnConnect([&](error_code ec) {
+		expect_success(ec);
+		connect_done.set_value();
+	});
+	accept_handler.setOnAccept([&](error_code ec) {
+		expect_success(ec);
+		accept_done.set_value();
+	});
 
-	connection_handler->connect(endpoint,IOMode::Async);
-	io_client.run();
-	accept_handler->accept(*socket_server,IOMode::Async);
-	io_server.run();
+	connection_handler.connect(endpoint, IOMode::Async);
+	accept_handler.accept(socket_server, IOMode::Async);
+
+	connect_done.get_future().wait();
+	accept_done.get_future().wait();
 }

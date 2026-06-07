@@ -6,85 +6,92 @@
 #include <gtest/gtest.h>
 
 #include "AcceptHandler/AcceptHandler.hpp"
-// TODO: + Enum
-// TODO: - Блоки кода
-// TODO: +- sync vs async
 
-// TODO: hasError ( при при обращении к сесси если true удаляем из SM)
-// TODO: + Убрвть future
-// TODO: тесты на последовательную запись и чтение
+#include "IOContextHandler/IOContextHandler.hpp"
+
+#include "InformationMessage.hpp"
 
 class SessionTests : public ::testing::Test {
 public:
-	boost::asio::io_context io;
 	tcp::endpoint endpoint = tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), 8100);
-	std::unique_ptr<tcp::socket> server_socket;
-	std::shared_ptr<AcceptHandler> acceptHandler;
-	void SetUp() override
+	IOContextHandler io_client;
+	IOContextHandler io_server;
+
+	static void expect_success(error_code ec)
 	{
-		acceptHandler = std::make_shared<AcceptHandler>(io, endpoint);
-		server_socket = std::make_unique<tcp::socket>(io);
+		EXPECT_FALSE(ec);
 	}
-	void TearDown() override
+	static void expect_failure(error_code ec)
 	{
-		error_code ec;
-		acceptHandler->close();
+		EXPECT_TRUE(ec);
 	}
-	static void expect_success(error_code ec) { EXPECT_FALSE(ec); }
-	static void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
+
+	TransportMessage create_info_message(int id)
+	{
+		auto message = std::make_unique<InformationMessage>("information", Transaction::Response, id);
+		MessageHandler handler;
+		return handler.serialize(std::move(message));
+	};
+	int get_data_from_info_message(TransportMessage&& transportMessage)
+	{
+		MessageHandler handler;
+		auto message      = handler.parse(std::move(transportMessage));
+		auto info_message = dynamic_cast<InformationMessage*>(message.get());
+		return info_message->getNumberCore();
+	}
 };
 
-TEST_F(SessionTests, SyncCreateSessionAndConnection)
+TEST_F(SessionTests, SyncTwoSessionReadAndWrite)
 {
-	acceptHandler->setOnAccept(expect_success);
-	acceptHandler->accept(*server_socket,IOMode::Async);
-	auto session = std::make_shared<Session>(IOMode::Sync);
-	session->setOnConnect(expect_success);
-	session->connect(endpoint);
-	io.run();
-}
-TEST_F(SessionTests, AsyncCreateSessionAndConnection)
-{
-	acceptHandler->setOnAccept(expect_success);
-	acceptHandler->accept(*server_socket,IOMode::Async);
-	auto session = std::make_shared<Session>(IOMode::Async);
-	session->setOnConnect(expect_success);
-	session->connect(endpoint);
-	io.run();
-}
-TEST_F(SessionTests, SyncSessionWrite)
-{
-	auto req = std::make_unique<Message>("signal", Transaction::Request);
-	acceptHandler->setOnAccept([&](error_code ec) {
+	Session client_session(io_client.getIOContext(), IOMode::Sync);
+	Session server_session(io_server.getIOContext(), IOMode::Sync);
+	AcceptHandler acceptHandler(io_server.getIOContext(), endpoint);
+	client_session.setOnConnect([&](error_code ec) {
 		EXPECT_FALSE(ec);
-		char c[1];
-		error_code code;
-		boost::asio::read(*server_socket, boost::asio::buffer(c, 1), code);
-		EXPECT_FALSE(code);
+		client_session.write(std::make_unique<InformationMessage>("information", Transaction::Response, 100));
 	});
-	acceptHandler->accept(*server_socket,IOMode::Async);
-	auto session = std::make_shared<Session>(IOMode::Sync);
-	session->setOnConnect(expect_success);
-	session->connect(endpoint);
-	session->write(req);
-	io.run();
+	server_session.setOnAllRead([](error_code ec, std::unique_ptr<Message>&& message) {
+		auto info = dynamic_cast<InformationMessage*>(message.get());
+		EXPECT_EQ(info->getNumberCore(), 100);
+	});
+
+	std::thread t_accept([&]() {
+		server_session.setOnAccept([&](error_code ec) {
+			EXPECT_FALSE(ec);
+			server_session.read();
+		});
+		server_session.accept(acceptHandler);
+	});
+	client_session.connect(endpoint);
+	t_accept.join();
 }
-TEST_F(SessionTests, AsyncSessionWrite)
+
+TEST_F(SessionTests, AsyncTwoSessionReadAndWrite)
 {
-	auto req = std::make_unique<Message>("signal", Transaction::Request);
-	acceptHandler->setOnAccept([&](error_code ec) {
+	Session client_session(io_client.getIOContext(), IOMode::Async);
+	Session server_session(io_server.getIOContext(), IOMode::Async);
+	AcceptHandler acceptHandler(io_server.getIOContext(), endpoint);
+
+	std::promise<void> read_done;
+
+	client_session.setOnConnect([&client_session](error_code ec) {
 		EXPECT_FALSE(ec);
-		char c[1];
-		error_code code;
-		boost::asio::read(*server_socket, boost::asio::buffer(c, 1), code);
-		EXPECT_FALSE(code);
+		client_session.write(std::make_unique<InformationMessage>("information", Transaction::Response, 100));
 	});
-	acceptHandler->accept(*server_socket,IOMode::Async);
-	auto session = std::make_shared<Session>(IOMode::Async);
-	session->setOnConnect([&](error_code ec) {
+	server_session.setOnAllRead([&read_done](error_code ec, std::unique_ptr<Message>&& message) {
+		EXPECT_NE(message, nullptr);
+		auto info = dynamic_cast<InformationMessage*>(message.get());
+		EXPECT_EQ(info->getNumberCore(), 100);
+		read_done.set_value();
+	});
+
+	server_session.setOnAccept([&server_session](error_code ec) {
 		EXPECT_FALSE(ec);
-		session->write(req);
+		server_session.read();
 	});
-	session->connect(endpoint);
-	io.run();
+
+	server_session.accept(acceptHandler);
+	client_session.connect(endpoint);
+
+	read_done.get_future().wait();
 }

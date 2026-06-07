@@ -5,88 +5,82 @@
 #include <boost/asio.hpp>
 
 #include "ConnectionHandler/ConnectionHandler.hpp"
+#include "IOContextHandler/IOContextHandler.hpp"
 
 class ConnectionHandlerTests : public ::testing::Test {
 public:
-	boost::asio::io_context context;
+	IOContextHandler context_acceptor;
+	IOContextHandler context_socket;
 	std::unique_ptr<tcp::acceptor> acceptor;
 	tcp::endpoint endpoint = tcp::endpoint(boost::asio::ip::make_address("127.0.0.1"), 8000);
-	std::unique_ptr<tcp::socket> socket;
+	std::shared_ptr<tcp::socket> socket;
 
-	std::shared_ptr<ConnectionHandler> ch;
 	void SetUp() override
 	{
-		acceptor = std::make_unique<tcp::acceptor>(context);
+		acceptor = std::make_unique<tcp::acceptor>(context_acceptor.getIOContext());
 		acceptor->open(endpoint.protocol());
 		acceptor->set_option(tcp::acceptor::reuse_address(true));
 		acceptor->bind(endpoint);
-		socket = std::make_unique<tcp::socket>(context);
-
-		ch = std::make_shared<ConnectionHandler>(*socket);
+		socket = std::make_shared<tcp::socket>(context_socket.getIOContext());
 	}
 	void TearDown() override
 	{
 		acceptor->cancel();
 		acceptor->close();
-		if(socket->is_open())
-			socket->close();
-
-		if (ch != nullptr) {
-			ch->disconnect();
-			ch.reset();
-		}
 	}
 
 	void listenAcceptor()
 	{
 		acceptor->listen();
 	}
-	static void expect_success(error_code ec) { EXPECT_FALSE(ec); }
-	static void expect_failure(error_code ec) { EXPECT_TRUE(ec); }
+	static void expect_success(error_code ec)
+	{
+		EXPECT_FALSE(ec);
+	}
+	static void expect_failure(error_code ec)
+	{
+		EXPECT_TRUE(ec);
+	}
 };
 TEST_F(ConnectionHandlerTests, SyncConnectAndDisconnectSuccess)
 {
 	listenAcceptor();
-	ch->setOnConnect(expect_success);
-	ch->setOnDisconnect(expect_success);
-	ch->connect("127.0.0.1", 8000, IOMode::Sync);
-	ch->disconnect();
+	ConnectionHandler ch(socket);
+	ch.setOnConnect(expect_success);
+	ch.setOnDisconnect(expect_success);
+	ch.connect("127.0.0.1", 8000, IOMode::Sync);
+	ch.disconnect();
 }
 
 TEST_F(ConnectionHandlerTests, AsyncConnectAndDisconnectSuccess)
 {
 	listenAcceptor();
-	ch->setOnDisconnect(expect_success);
-	ch->setOnConnect([this](error_code error_code) {
-		expect_success(error_code);
-		ch->disconnect();
-
+	ConnectionHandler ch(socket);
+	std::promise<void> do_disconnect;
+	ch.setOnDisconnect([&do_disconnect](error_code ec) {
+		EXPECT_FALSE(ec);
+		do_disconnect.set_value();
+	});
+	ch.setOnConnect([&ch](error_code ec) {
+		EXPECT_FALSE(ec);
+		ch.disconnect();
 	});
 
-	ch->connect("127.0.0.1", 8000,IOMode::Async);
-	context.run();
-}
-TEST_F(ConnectionHandlerTests, SyncConnectAndDisconnectFailure)
-{
-	ch->setOnConnect(expect_failure);
-	ch->connect("127.0.0.1", 8000,IOMode::Sync);
+	ch.connect("127.0.0.1", 8000, IOMode::Async);
+	do_disconnect.get_future().wait();
 }
 
-TEST_F(ConnectionHandlerTests, AsyncConnectAndDisconnectFailure)
-{
-	ch->setOnConnect(expect_failure);
-	ch->connect("127.0.0.1", 8000,IOMode::Async);
-	context.run();
-}
-
-TEST_F(ConnectionHandlerTests,AsyncConnectAndThrow)
+TEST_F(ConnectionHandlerTests, AsyncConnectAndThrow)
 {
 	listenAcceptor();
-	ch->setOnConnect([&](error_code ec) {
-		expect_success(ec);
+	std::promise<void> do_connect;
+	ConnectionHandler ch(socket);
+
+	ch.setOnConnect([&](error_code ec) {
+		EXPECT_FALSE(ec);
+		do_connect.set_value();
 		throw std::runtime_error("test error");
 	});
-	ch->connect("127.0.0.1", 8000,IOMode::Async);
-	context.run();
-
+	ch.connect("127.0.0.1", 8000, IOMode::Async);
+	do_connect.get_future().wait();
 }

@@ -8,27 +8,30 @@
 #include "ErrorHandler/ErrorHandler.hpp"
 #include <functional>
 #include "utils.hpp"
+#include "IOContextHandler/IOContextHandler.hpp"
 
-
-class ConnectionHandler : public std::enable_shared_from_this<ConnectionHandler> {
+class ConnectionHandler {
 public:
-	ConnectionHandler(tcp::socket&);
+	ConnectionHandler(std::shared_ptr<tcp::socket>&);
 	~ConnectionHandler();
 
-	void connect(const std::string& host, uint16_t port,IOMode);
-	void connect(const tcp::endpoint& endpoint,IOMode);
+	void connect(const std::string& host, uint16_t port, IOMode);
+	void connect(const tcp::endpoint& endpoint, IOMode);
 	void disconnect();
 
 	void setOnConnect(const CallBack&);
 	void setOnDisconnect(const CallBack&);
-protected:
+	void setOnError(const CallBack&);
 
+protected:
 	void sync_connect(const tcp::endpoint&);
 
 	void async_connect(const tcp::endpoint&);
 
-	tcp::socket& socket;
+	std::shared_ptr<tcp::socket> socket;
 
 	CallBack onConnect;
 	CallBack onDisconnect;
+
+	CallBack onError;
 };

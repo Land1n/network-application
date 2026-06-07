@@ -5,11 +5,23 @@
 
 #include <iostream>
 
-ConnectionHandler::ConnectionHandler(tcp::socket& socket) : socket(socket)
+ConnectionHandler::ConnectionHandler(std::shared_ptr<tcp::socket>& socket) : socket(socket)
 {}
 ConnectionHandler::~ConnectionHandler()
 {
-	disconnect();
+	if(!socket || !socket->is_open()) {
+		boost::system::error_code ec;
+		ErrorHandler::check_error(ec, "ConnectionHandler::~ConnectionHandler");
+		return;
+	}
+	auto s = socket;
+	boost::asio::post(s->get_executor(), [s]() {
+		boost::system::error_code ec;
+		s->shutdown(tcp::socket::shutdown_both, ec);
+		ErrorHandler::check_error(ec, "ConnectionHandler::~ConnectionHandler{shutdown}");
+		s->close(ec);
+		ErrorHandler::check_error(ec, "ConnectionHandler::~ConnectionHandler{close}");
+	});
 }
 
 void ConnectionHandler::connect(const tcp::endpoint& endpoint, IOMode mode)
@@ -30,8 +42,11 @@ void ConnectionHandler::connect(const std::string& host, uint16_t port, IOMode m
 void ConnectionHandler::sync_connect(const tcp::endpoint& endpoint)
 {
 	error_code error;
-	socket.connect(endpoint, error);
-	if(ErrorHandler::check_error(error, "ConnectionHandler::connect.ssync")) {
+	socket->connect(endpoint, error);
+	if(ErrorHandler::check_error(error, "ConnectionHandler::connect.sync")) {
+		if(onError) {
+			onError(error);
+		}
 		disconnect();
 	}
 	if(onConnect) {
@@ -41,10 +56,12 @@ void ConnectionHandler::sync_connect(const tcp::endpoint& endpoint)
 
 void ConnectionHandler::async_connect(const tcp::endpoint& endpoint)
 {
-	auto self = shared_from_this();
-	socket.async_connect(endpoint, [this, self](error_code ec) {
+	socket->async_connect(endpoint, [this](error_code ec) {
 		try {
 			if(ErrorHandler::check_error(ec, "ConnectionHandler::connect.async")) {
+				if(onError) {
+					onError(ec);
+				}
 				disconnect();
 			}
 			if(onConnect) {
@@ -59,15 +76,26 @@ void ConnectionHandler::async_connect(const tcp::endpoint& endpoint)
 
 void ConnectionHandler::disconnect()
 {
-	error_code error;
-	if(socket.is_open()) {
-		socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both, error);
-		socket.close();
-		if(onDisconnect) {
-			onDisconnect(error);
-		}
-		ErrorHandler::check_error(error, "ConnectionHandler::disconnect");
+	if(!socket->is_open())
+		return;
+
+	error_code ec;
+	socket->shutdown(tcp::socket::shutdown_both, ec);
+	if(ec) {
+		if(onError)
+			onError(ec);
+		ErrorHandler::check_error(ec, "ConnectionHandler::disconnect(shutdown)");
 	}
+
+	socket->close(ec);
+	if(ec) {
+		if(onError)
+			onError(ec);
+		ErrorHandler::check_error(ec, "ConnectionHandler::disconnect(close)");
+	}
+
+	if(onDisconnect)
+		onDisconnect(ec);
 }
 void ConnectionHandler::setOnConnect(const CallBack& c)
 {
@@ -76,4 +104,8 @@ void ConnectionHandler::setOnConnect(const CallBack& c)
 void ConnectionHandler::setOnDisconnect(const CallBack& c)
 {
 	onDisconnect = c;
+}
+void ConnectionHandler::setOnError(const CallBack& c)
+{
+	onError = c;
 }

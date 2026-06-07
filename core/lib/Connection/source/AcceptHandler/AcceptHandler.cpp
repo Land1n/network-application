@@ -14,7 +14,13 @@ AcceptHandler::AcceptHandler(boost::asio::io_context& io, const tcp::endpoint& e
 
 AcceptHandler::~AcceptHandler()
 {
-	close();
+	if(!acceptor.is_open())
+		return;
+	error_code ec;
+	acceptor.cancel(ec);
+	ErrorHandler::check_error(ec, "AcceptHandler::~AcceptHandler{cancel}");
+	acceptor.close(ec);
+	ErrorHandler::check_error(ec, "AcceptHandler::~AcceptHandler{close}");
 }
 
 void AcceptHandler::setOnAccept(const CallBack& c)
@@ -25,6 +31,12 @@ void AcceptHandler::setOnClose(const CallBack& c)
 {
 	onClose = c;
 }
+void AcceptHandler::setOnError(const CallBack& c)
+{
+	onError = c;
+}
+void AcceptHandler::getIOContext()
+{}
 
 void AcceptHandler::setOptionAcceptor(const std::string& address, int port)
 {
@@ -41,7 +53,7 @@ void AcceptHandler::setOptionAcceptor(const tcp::endpoint& endpoint)
 	acceptor.listen();
 }
 
-void AcceptHandler::accept(tcp::socket& socket, IOMode mode)
+void AcceptHandler::accept(std::shared_ptr<tcp::socket> socket, IOMode mode)
 {
 	if(mode == IOMode::Sync) {
 		sync_accept(socket);
@@ -50,19 +62,23 @@ void AcceptHandler::accept(tcp::socket& socket, IOMode mode)
 		async_accept(socket);
 	}
 }
-void AcceptHandler::sync_accept(tcp::socket& socket)
+void AcceptHandler::sync_accept(std::shared_ptr<tcp::socket>& socket)
 {
 	error_code ec;
-	acceptor.accept(socket, ec);
-	if (onAccept)
+	acceptor.accept(*socket, ec);
+	if(ErrorHandler::check_error(ec, "AcceptHandler::accept.sync")) {
+		if(onError)
+			onError(ec);
+	}
+	if(onAccept)
 		onAccept(ec);
-	ErrorHandler::check_error(ec, "AcceptHandler::accept.sync");
 }
-void AcceptHandler::async_accept(tcp::socket& socket)
+void AcceptHandler::async_accept(std::shared_ptr<tcp::socket>& socket)
 {
-	auto self    = shared_from_this();
-	acceptor.async_accept(socket, [this, self](error_code ec) {
-		ErrorHandler::check_error(ec, "AcceptHandler::accept.async");
+	acceptor.async_accept(*socket, [this](error_code ec) {
+		if(ErrorHandler::check_error(ec, "AcceptHandler::accept.async"))
+			if(onError)
+				onError(ec);
 		if(onAccept)
 			onAccept(ec);
 	});
@@ -70,12 +86,12 @@ void AcceptHandler::async_accept(tcp::socket& socket)
 void AcceptHandler::close()
 {
 	error_code ec;
-	std::promise<error_code> promise;
 	if(acceptor.is_open()) {
 		acceptor.cancel(ec);
 		ErrorHandler::check_error(ec, "AcceptHandler::cancel");
 		acceptor.close(ec);
-		if (onClose) onClose(ec);
+		if(onClose)
+			onClose(ec);
 		ErrorHandler::check_error(ec, "AcceptHandler::close");
 	}
 }

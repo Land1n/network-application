@@ -7,8 +7,9 @@
 
 #include <iostream>
 #include <bits/codecvt.h>
+#include "utils.hpp"
 
-void setErrorMessage(TransportMessage& message)
+void TransportHandler::setErrorMessage(TransportMessage& message)
 {
 	message.type        = "error";
 	message.transaction = Transaction::Error;
@@ -20,7 +21,7 @@ bool isErrorMessage(TransportMessage& message)
 	return message.type == "error" && message.transaction == Transaction::Error;
 }
 
-TransportHandler::TransportHandler(tcp::socket& socket) : socket(socket),onError(onError)
+TransportHandler::TransportHandler(std::shared_ptr<tcp::socket>& socket) : socket(socket)
 {}
 
 void TransportHandler::setMagicNumber(uint32_t mg)
@@ -36,140 +37,166 @@ void TransportHandler::setOnWriteHandler(std::function<void(const void*, size_t)
 {
 	onWriteHandler = handler;
 }
-void TransportHandler::setOnAllRead(const std::function<void(error_code, TransportMessage)>& handler)
+void TransportHandler::setOnAllRead(const std::function<void(error_code, TransportMessage&&)>& handler)
 {
 	onAllRead = handler;
 }
 
-void TransportHandler::setOnAllWrite(const std::function<void(error_code, TransportMessage)>& handler)
+void TransportHandler::setOnAllWrite(const std::function<void(error_code, TransportMessage&&)>& handler)
 {
 	onAllWrite = handler;
 }
 
-void TransportHandler::read(TransportMessage& in_message, IOMode mode)
+void TransportHandler::read_sync()
 {
+	TransportMessage transportMessage;
+	uint32_t magic, json_len;
+	auto bufferSize = sizeof(uint32_t);
+	auto buffers    = std::vector{boost::asio::buffer(&magic, bufferSize), boost::asio::buffer(&json_len, bufferSize)};
+
+	auto errorHandler = [this](error_code error, TransportMessage& transportMessage, const std::string& func) {
+		if(ErrorHandler::check_error(error, std::string("TransportHandler::read.sync") + "{" + func + "}")) {
+			if(onError) {
+				onError(error);
+			}
+		}
+		if(error) {
+			TransportHandler::setErrorMessage(transportMessage);
+			if(onAllRead)
+				onAllRead(error, std::move(transportMessage));
+			return true;
+		}
+		return false;
+	};
+
 	error_code error;
+	boost::asio::read(*socket, buffers, error);
+	if(errorHandler(error, transportMessage, "headers"))
+		return;
+
+	transportMessage.payload.resize(json_len);
+	boost::asio::read(*socket, boost::asio::buffer(transportMessage.payload), error);
+	if(errorHandler(error, transportMessage, "payload"))
+		return;
+
+	std::string json(reinterpret_cast<const char*>(transportMessage.payload.data()), transportMessage.payload.size());
+	json::value json_val = json::parse(json, error);
+	if(errorHandler(error, transportMessage, "parse_json"))
+		return;
+
+	transportMessage.type        = json_val.at("type").as_string();
+	transportMessage.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
+	if(onAllRead) {
+		onAllRead(error, std::move(transportMessage));
+	}
+}
+
+void TransportHandler::read_async()
+{
+	auto transportMessage = std::make_shared<TransportMessage>();
 
 	auto magic    = std::make_shared<uint32_t>(0);
 	auto json_len = std::make_shared<uint32_t>(0);
 
 	auto bufferSize = sizeof(uint32_t);
-	auto buffers = std::vector{boost::asio::buffer(magic.get(), bufferSize), boost::asio::buffer(json_len.get(), bufferSize)};
+	auto buffers =
+	    std::vector{boost::asio::buffer(magic.get(), bufferSize), boost::asio::buffer(json_len.get(), bufferSize)};
 
-	auto short_print = [&mode](error_code ec, const std::string& read_what) {
-		ErrorHandler::check_error(ec, std::string("TransportHandler::read.") + getSyncOrAsync(mode) + "{" + read_what + "}");
+	auto errorHandler = [this](error_code error, TransportMessage& transportMessage, const std::string& func) {
+		if(ErrorHandler::check_error(error, std::string("TransportHandler::read.async") + "{" + func + "}")) {
+			if(onError) {
+				onError(error);
+			}
+		}
+		if(error) {
+			TransportHandler::setErrorMessage(transportMessage);
+			if(onAllRead)
+				onAllRead(error, std::move(transportMessage));
+			return true;
+		}
+		return false;
 	};
 
+	boost::asio::async_read(
+	    *socket, buffers,
+	    [this, magic, json_len, transportMessage = std::move(transportMessage),
+	     errorHandler = std::move(errorHandler)](error_code error, size_t) {
+		    if(errorHandler(error, *transportMessage, "headers"))
+			    return;
+		    transportMessage->payload.resize(*json_len);
+		    boost::asio::async_read(
+		        *socket, boost::asio::buffer(transportMessage->payload),
+		        [this, transportMessage = std::move(transportMessage),
+		         errorHandler = std::move(errorHandler)](error_code error, size_t) {
+			        if(errorHandler(error, *transportMessage, "payload"))
+				        return;
+			        std::string json(reinterpret_cast<const char*>(transportMessage->payload.data()),
+			                         transportMessage->payload.size());
+			        json::value json_val = json::parse(json, error);
+			        if(errorHandler(error, *transportMessage, "parse_json"))
+				        return;
+			        transportMessage->type        = json_val.at("type").as_string();
+			        transportMessage->transaction = setTypeTransaction(json_val.at("transaction").as_int64());
+			        if(onAllRead) {
+				        onAllRead(error, std::move(*transportMessage));
+			        }
+		        });
+	    });
+}
+
+void TransportHandler::read(IOMode mode)
+{
 	if(mode == IOMode::Sync) {
-
-
-		boost::asio::read(socket, buffers, error);
-		short_print(error, "buffer");
-		if(error) {
-			setErrorMessage(in_message);
-			if(onAllRead) onAllRead(error, in_message);
-			return;
-		}
-
-
-		in_message.payload.resize(*json_len);
-		boost::asio::read(socket, boost::asio::buffer(in_message.payload), error);
-		short_print(error, "payload");
-		if(error) {
-			setErrorMessage(in_message);
-			if(onAllRead) onAllRead(error, in_message);
-			return;
-		}
-
-
-		std::string json(reinterpret_cast<const char*>(in_message.payload.data()), in_message.payload.size());
-		json::value json_val = json::parse(json, error);
-		short_print(error, "json");
-		if(error) {
-			if(onAllRead) onAllRead(error, in_message);
-			setErrorMessage(in_message);
-			return;
-		}
-
-
-		in_message.type        = json_val.at("type").as_string();
-		in_message.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
-		if(onAllRead) onAllRead(error, in_message);
+		read_sync();
 	}
 	else {
-		boost::asio::async_read(
-		    socket, buffers,
-		    [this, magic, json_len, &in_message, short_print](error_code ec, size_t) {
-			    short_print(ec, "buffer");
-			    if(ec) {
-				    setErrorMessage(in_message);
-			    	if (onAllRead) onAllRead(ec,in_message);
-				    return;
-			    }
-
-
-			    in_message.payload.resize(*json_len);
-			    boost::asio::async_read(socket, boost::asio::buffer(in_message.payload), [&](error_code ec, size_t) {
-				    short_print(ec, "payload");
-				    if(ec) {
-					    setErrorMessage(in_message);
-				    	if (onAllRead) onAllRead(ec,in_message);
-					    return;
-				    }
-
-
-				    std::string json(reinterpret_cast<const char*>(in_message.payload.data()),
-				                     in_message.payload.size());
-				    json::value json_val = json::parse(json, ec);
-			    	short_print(ec, "json");
-					if(ec) {
-						setErrorMessage(in_message);
-						if (onAllRead) onAllRead(ec,in_message);
-						return;
-					}
-					in_message.type        = json_val.at("type").as_string();
-					in_message.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
-			    	if (onAllRead) onAllRead(ec,in_message);
-			    });
-		    });
+		read_async();
 	}
 }
 
-void TransportHandler::write(const TransportMessage& message, IOMode mode)
+void TransportHandler::write(TransportMessage&& transportMessage, IOMode mode)
 {
-	uint32_t json_len = message.payload.size();
+	auto out_message  = std::make_shared<TransportMessage>(transportMessage);
+	uint32_t json_len = out_message->payload.size();
 	if(onWriteHandler)
-		onWriteHandler(message.payload.data(), message.payload.size());
+		onWriteHandler(out_message->payload.data(), out_message->payload.size());
 	std::vector<boost::asio::const_buffer> buffers;
 	buffers.push_back(boost::asio::buffer(&magicNumber, 4));
 	buffers.push_back(boost::asio::buffer(&json_len, 4));
-	buffers.push_back(boost::asio::buffer(message.payload));
+	buffers.push_back(boost::asio::buffer(out_message->payload));
 	error_code error;
 	try {
 		if(mode == IOMode::Sync) {
-			boost::asio::write(socket, buffers, error);
+			boost::asio::write(*socket, buffers, error);
+
 			if(ErrorHandler::check_error(error, "TransportHandler::write.sync")) {
-				if (onError) onError();
+				if(onError) {
+					onError(error);
+				}
 			}
 			if(onAllWrite) {
-				onAllWrite(error, message);
+				onAllWrite(error, std::move(*out_message));
 			}
 		}
 		else {
-			boost::asio::async_write(socket, buffers, [](error_code code, std::size_t) {
-				ErrorHandler::check_error(code, "TransportHandler::write.async");
+			boost::asio::async_write(*socket, buffers, [this, out_message](error_code error, std::size_t) {
+				if(ErrorHandler::check_error(error, "TransportHandler::write.async")) {
+					if(onError) {
+						onError(error);
+					}
+				}
+				if(onAllWrite) {
+					onAllWrite(error, std::move(*out_message));
+				}
 			});
-			if(onAllWrite) {
-				onAllWrite(error, message);
-			}
 		}
 	}
 	catch(const std::exception& e) {
-		ErrorHandler::check_error(e, std::string("TransportHandler::write.") + getSyncOrAsync(mode));
+		ErrorHandler::check_error(e,
+		                          std::string("TransportHandler::write.") + (mode == IOMode::Sync ? "sync" : "async"));
 	}
 }
-void TransportHandler::setOnError(std::function<void()> handler)
+void TransportHandler::setOnError(std::function<void(error_code)> handler)
 {
 	onError = handler;
 }
-

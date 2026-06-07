@@ -5,49 +5,51 @@
 #include "ConnectionHandler/ConnectionHandler.hpp"
 #include "TransportHandler/TransportHandler.hpp"
 #include "MessageHandler.hpp"
-#include  "Message.hpp"
+#include "Message.hpp"
+#include "AcceptHandler/AcceptHandler.hpp"
 
 #include <string>
 #include <boost/type.hpp>
 
 enum class TypeSession {
-	Sync = 0,
+	Sync  = 0,
 	Async = 1,
 };
 
-class Session : public std::enable_shared_from_this<Session> {
+class Session {
 public:
-	Session(IOMode type);
+	Session(boost::asio::io_context& io, IOMode type);
 	~Session();
+
 	void connect(const std::string& address, unsigned int port);
 	void connect(const tcp::endpoint& endpoint);
+	void accept(AcceptHandler& accept_handler);
 
 	void write(const std::unique_ptr<Message>& message);
-	void read(std::unique_ptr<Message>& message);
+	void read();
 
 	void disconnect();
 
 	void setOnConnect(const CallBack&);
+	void setOnAccept(const CallBack&);
 
-	void startAsyncWork();
-	void stopAsyncWork();
+	void setOnAllWrite(const CallBack&);
+	void setOnAllRead(const std::function<void(error_code, std::unique_ptr<Message>&&)>&);
 
-	bool hasError();
+	void setOnError(const CallBack&);
+
 protected:
-
 	IOMode mode;
 
-	std::shared_ptr<ConnectionHandler> connection_handler;
-	std::shared_ptr<TransportHandler> transport_handler;
-	std::shared_ptr<MessageHandler> message_handler;
+	std::unique_ptr<ConnectionHandler> connection_handler;
+	std::unique_ptr<TransportHandler> transport_handler;
+	MessageHandler message_handler;
 
-	boost::asio::io_context io_context;
 	std::shared_ptr<tcp::socket> socket;
 
 	CallBack on_connect;
+	CallBack on_accept;
 
-	bool is_error = false;
-
-	std::thread thread_for_io_context;
-	std::unique_ptr<boost::asio::io_context::work> work_io_context;
+	CallBack on_all_write;
+	std::function<void(error_code, std::unique_ptr<Message>&&)> on_all_read;
 };

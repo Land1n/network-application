@@ -18,6 +18,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::json
         Logger
         TransportHandler
+        ErrorHandler
 )
 
 add_subdirectory(tests)

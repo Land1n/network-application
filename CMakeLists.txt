@@ -11,6 +11,7 @@ find_package(Boost REQUIRED COMPONENTS system thread json chrono)
 set(PARENT_PROJECT ON)
 
 #add_subdirectory(core/lib/BaseConnectionHandler)
+add_subdirectory(core/lib/IOContextHandler)
 add_subdirectory(core/lib/ErrorHandler)
 add_subdirectory(core/lib/Utils)
 add_subdirectory(core/lib/Connection)
@@ -51,6 +52,7 @@ target_link_libraries(all_tests PRIVATE
         Boost::thread
         Boost::json
         Boost::chrono
+        IOContextHandler
         Utils
         Worker
         Logger
@@ -58,8 +60,8 @@ target_link_libraries(all_tests PRIVATE
         TransportHandler
         MessageHandler
         Session
-#        ServerRequestResponseHandler
-#        SegmentServerCore
+        #        ServerRequestResponseHandler
+        #        SegmentServerCore
 )
 
 enable_testing()

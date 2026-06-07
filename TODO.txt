@@ -1,0 +1,17 @@
+// TODO: + Enum async или sync
+// TODO: - Блоки кода
+// TODO: +- sync vs async
+
+// TODO: + hasError ( при при обращении к сесси если true удаляем из SM)
+// TODO: + Убрвть future
+// TODO: + тесты на последовательную запись и чтение
+
+// TODO: Почитать про динамическую и статическую линковку
+// TODO: Заменить shared_ptr на unique_ptr в read, write TransportHandler
+
+// todo: запись данных из двух поток с разными и проаверить что эти сообщения не сливаются вместе
+
+// + todo: Передеалать в handlers socket& -> std::shared_ptr<socket>
+// + todo: рефакторить TransportHandler
+
+// + todo: Отказать от std::enable_shared_from_this
