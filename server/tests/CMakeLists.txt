@@ -11,11 +11,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Boost::system
         Boost::json
         SegmentServerCore
-        TransportHandler
-        MessageHandler
-        ServerRequestResponseHandler
-        SyncServerConnectionHandler
-        SyncClientConnectionHandler
 )
 
 enable_testing()

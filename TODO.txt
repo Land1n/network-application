@@ -15,3 +15,21 @@
 // + todo: рефакторить TransportHandler
 
 // + todo: Отказать от std::enable_shared_from_this
+
+// + todo
+	auto errorHandler = [this](error_code error, TransportMessage& transportMessage, const std::string& func) {
+		if(ErrorHandler::check_error(error, std::string("TransportHandler::read.sync") + "{" + func + "}")) {
+			if(onError) {
+				onError(error);
+			}
+		}
+		if(error) {
+			setErrorMessage(transportMessage);
+					if(onAllRead) {
+            			auto msgCopy = transportMessage;
+            			onAllRead(error, std::move(msgCopy));
+            		}
+			return true;
+		}
+		return false;
+	};

@@ -2,6 +2,7 @@
 // Created by ivan on 14.03.2026.
 //
 #include "SegmentClientCreator.hpp"
+#include "ConfigurationHandler/ConfigurationHandler.hpp"
 #include "clientserveriface/client.h"
 #include <iostream>
 #include <csignal>
@@ -11,38 +12,54 @@
 
 std::atomic<bool> running{true};
 
-void signal_handler(int) {
-    running = false;
+void signal_handler(int)
+{
+	running = false;
 }
 
-int main() {
-    std::signal(SIGINT, signal_handler);
-    std::signal(SIGTERM, signal_handler);
+int main()
+{
+	std::signal(SIGINT, signal_handler);
+	std::signal(SIGTERM, signal_handler);
 
-    Network::ClientCreatorParams params;
-    params.hostname = "127.0.0.1";
-    params.port = 8000;
-    SegmentClientCreator creator;
-    auto net_client = creator.create(params);
-    auto* client = reinterpret_cast<SegmentClient*>(net_client.get());
-	Logger::getInstance().setLevel(LogLevel::Debug);
-    client->setReadHandler([](const void* data, size_t sz) {
-        std::cout.write(static_cast<const char*>(data), sz) << std::endl;
-    });
+	Network::ClientCreatorParams params;
 
-    client->start();
-    client->connect();
+	SegmentClientCreator creator;
+	ConfigurationHandler handler;
+	try {
+		auto clientConfig = handler.getJson(Configuration::Connection);
+		std::string addr  = clientConfig.at("address").as_string().c_str();
+		auto& portsArr    = clientConfig.at("port").as_array();
+		Logger::getInstance().log(LogLevel::Info, "ClientConfig",
+		                          "address = " + addr + " port[0] = " + std::to_string(portsArr[0].as_int64()));
+		params.hostname = addr;
+		params.port     = portsArr[0].as_int64();
+	}
+	catch(const std::exception& e) {
+		Logger::getInstance().log(LogLevel::Error, "ClientConfig ", "Not connection");
+	}
 
+	auto net_client = creator.create(params);
 
-    const char* msg = "Hello from creator!";
-    client->write(msg, std::strlen(msg));
+	auto* client = reinterpret_cast<SegmentClient*>(net_client.get());
+	client->setReadHandler([](const void* data, size_t sz) {
+		std::string str(static_cast<const char*>(data), sz - 1);
+		Logger::getInstance().log(LogLevel::Info, "Server::write", "RESPONSE : " + str);
+	});
 
-    while (running && client) {
-        if (!client->isRunning()) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+	client->start();
 
-    client->disconnect();
-    client->stop();
-    return 0;
+	std::string msg = "";
+	while(running && client->getIsWork()) {
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		Logger::getInstance().log(LogLevel::Info, "Client::write", " : ");
+		std::getline(std::cin, msg);
+		if(msg == "stop") {
+			break;
+		}
+		client->write(msg.data(), msg.size());
+	}
+
+	client->stop();
+	return 0;
 }

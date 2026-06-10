@@ -33,6 +33,8 @@ public:
 	void setOnConnect(const CallBack&);
 	void setOnAccept(const CallBack&);
 
+	void setOnReadHandler(std::function<void(size_t, const void*, size_t)>);
+
 	void setOnAllWrite(const CallBack&);
 	void setOnAllRead(const std::function<void(error_code, std::unique_ptr<Message>&&)>&);
 

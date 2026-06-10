@@ -11,8 +11,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 file(GLOB SOURCES "include/*/*.hpp" "source/*/*.cpp")
 
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES}
-        source/AcceptHandler/AcceptHandler.cpp)
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 
 target_link_libraries(${PROJECT_NAME} PUBLIC

@@ -67,6 +67,10 @@ void Session::setOnAccept(const CallBack& callback)
 {
 	on_accept = callback;
 }
+void Session::setOnReadHandler(std::function<void(size_t, const void*, size_t)> handler)
+{
+	transport_handler->setOnReadHandler(handler);
+}
 void Session::setOnAllRead(const std::function<void(error_code, std::unique_ptr<Message>&&)>& callback)
 {
 	on_all_read = callback;
@@ -86,18 +90,26 @@ void Session::read()
 {
 	transport_handler->setOnAllRead([this](error_code ec, TransportMessage&& transportMessage) {
 		if(!ErrorHandler::check_error(ec, std::string("Session::read.") + getSyncOrAsync(mode), true)) {
+			auto msg = message_handler.parse(transportMessage);
 			if(on_all_read) {
-				on_all_read(ec, std::move(message_handler.parse(transportMessage)));
+				if(msg == nullptr) {
+					ErrorHandler::check_error(ec, std::string("Session::read.") + getSyncOrAsync(mode) +
+					                                  "{Message=nullptr}");
+				}
+				on_all_read(ec, std::move(msg));
 			}
 		}
 		else {
 			if(on_all_read) {
+				ErrorHandler::check_error(ec,
+				                          std::string("Session::read.") + getSyncOrAsync(mode) + "{Message=nullptr}");
 				on_all_read(ec, nullptr);
 			}
 			disconnect();
 		}
 	});
-	transport_handler->read(mode);
+	if(socket->is_open())
+		transport_handler->read(mode);
 }
 
 void Session::write(const std::unique_ptr<Message>& message)

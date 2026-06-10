@@ -1,71 +1,73 @@
-#include "ServerRequestResponseHandler.hpp"
-#include <boost/json.hpp>
-
-namespace json = boost::json;
-
-ServerRequestResponseHandler::ServerRequestResponseHandler(const std::shared_ptr<CreatorMessage>& creator_message) :
-    RequestResponseHandlerBase(creator_message)
-{}
-
-std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse(const std::unique_ptr<Message>& message)
-{
-	logger.log(LogLevel::Debug, __func__,
-	           "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
-	logger.log(LogLevel::Debug, __func__, "message->type = " + message->type);
-
-	if(message->transaction == Transaction::Request) {
-		std::string json_str;
-		json::value jv;
-
-		if(message->type == "signal") {
-			json_str = R"({
-                "type": "signal",
-                "transaction" : 1,
-                "central_Freq": 6100,
-                "signal": [[-8.865925598144531E1, -6.549491882324219E1]]
-            })";
-		}
-		else if(message->type == "information") {
-			json_str = R"({
-                "type": "information",
-                "transaction" : 1,
-                "numberCore": 4
-            })";
-		}
-		else if(message->type == "raw") {
-			json_str = R"({
-                "type": "information",
-                "transaction" : 1,
-                "data" : [72, 101, 108, 108, 111, 32, 99, 108, 105, 101, 110, 116, 33]
-            })";
-		}
-		else {
-			json_str = R"({
-                "type": "unknown",
-                "transaction" : -1
-            })";
-		}
-		jv = json::parse(json_str);
-		logger.log(LogLevel::Debug, __func__, "Create response Message");
-		auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
-		return new_message;
-	}
-	else if(message->transaction == Transaction::Response) {
-		std::string json_str;
-		json::value jv;
-
-		if(message->type == "raw") {
-			json_str         = R"({
-                "type": "raw",
-                "transaction" : 1,
-                "data": [65, 99, 99, 101, 112, 116, 101, 100, 32, 109, 101, 115, 115, 97, 103, 101, 44, 32, 97, 108, 108, 32, 79, 75, 339]
-            })";
-			jv               = json::parse(json_str);
-			auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
-			return new_message;
-		}
-
-		return std::make_unique<Message>(message->type,message->transaction);
-	}
-	return nullptr;
-}
+// #include "ServerRequestResponseHandler.hpp"
+// #include <boost/json.hpp>
+//
+// namespace json = boost::json;
+//
+// ServerRequestResponseHandler::ServerRequestResponseHandler(const std::shared_ptr<CreatorMessage>& creator_message) :
+//     RequestResponseHandlerBase(creator_message)
+// {}
+//
+// std::unique_ptr<Message> ServerRequestResponseHandler::processingRequestResponse(const std::unique_ptr<Message>&
+// message)
+// {
+// 	logger.log(LogLevel::Debug, __func__,
+// 	           "message->transaction = " + std::to_string(static_cast<int>(message->transaction)));
+// 	logger.log(LogLevel::Debug, __func__, "message->type = " + message->type);
+//
+// 	if(message->transaction == Transaction::Request) {
+// 		std::string json_str;
+// 		json::value jv;
+//
+// 		if(message->type == "signal") {
+// 			json_str = R"({
+//                 "type": "signal",
+//                 "transaction" : 1,
+//                 "central_Freq": 6100,
+//                 "signal": [[-8.865925598144531E1, -6.549491882324219E1]]
+//             })";
+// 		}
+// 		else if(message->type == "information") {
+// 			json_str = R"({
+//                 "type": "information",
+//                 "transaction" : 1,
+//                 "numberCore": 4
+//             })";
+// 		}
+// 		else if(message->type == "raw") {
+// 			json_str = R"({
+//                 "type": "raw",
+//                 "transaction" : 1,
+//                 "data" : [72, 101, 108, 108, 111, 32, 99, 108, 105, 101, 110, 116, 33]
+//             })";
+// 		}
+// 		else {
+// 			json_str = R"({
+//                 "type": "unknown",
+//                 "transaction" : -1
+//             })";
+// 		}
+// 		jv = json::parse(json_str);
+// 		logger.log(LogLevel::Debug, __func__, "Create response Message");
+// 		auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
+// 		return new_message;
+// 	}
+// 	else if(message->transaction == Transaction::Response) {
+// 		std::string json_str;
+// 		json::value jv;
+//
+// 		if(message->type == "raw") {
+// 			json_str         = R"({
+//                 "type": "raw",
+//                 "transaction" : 1,
+//                 "data": [65, 99, 99, 101, 112, 116, 101, 100, 32, 109, 101, 115, 115, 97, 103, 101, 44, 32, 97, 108,
+//                 108, 32, 79, 75, 339]
+//             })";
+// 			jv               = json::parse(json_str);
+// 			auto new_message = creator_message->createMessage(message->type, Transaction::Response, jv);
+// 			return new_message;
+// 		}
+//
+// 		return std::make_unique<Message>(message->type,message->transaction);
+// 	}
+// 	return nullptr;
+// }

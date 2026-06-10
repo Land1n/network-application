@@ -61,9 +61,7 @@ void TransportHandler::read_sync()
 			}
 		}
 		if(error) {
-			TransportHandler::setErrorMessage(transportMessage);
-			if(onAllRead)
-				onAllRead(error, std::move(transportMessage));
+			setErrorMessage(transportMessage);
 			return true;
 		}
 		return false;
@@ -71,19 +69,31 @@ void TransportHandler::read_sync()
 
 	error_code error;
 	boost::asio::read(*socket, buffers, error);
-	if(errorHandler(error, transportMessage, "headers"))
+	if(errorHandler(error, transportMessage, "headers")) {
+		if(onAllRead) {
+			auto msgCopy = transportMessage;
+			onAllRead(error, std::move(msgCopy));
+		}
 		return;
+	}
 
 	transportMessage.payload.resize(json_len);
 	boost::asio::read(*socket, boost::asio::buffer(transportMessage.payload), error);
-	if(errorHandler(error, transportMessage, "payload"))
+	if(errorHandler(error, transportMessage, "headers")) {
+		if(onAllRead)
+			onAllRead(error, std::move(transportMessage));
 		return;
+	}
 
 	std::string json(reinterpret_cast<const char*>(transportMessage.payload.data()), transportMessage.payload.size());
 	json::value json_val = json::parse(json, error);
-	if(errorHandler(error, transportMessage, "parse_json"))
+	if(errorHandler(error, transportMessage, "headers")) {
+		if(onAllRead)
+			onAllRead(error, std::move(transportMessage));
 		return;
-
+	}
+	if(onReadHandler)
+		onReadHandler(0, transportMessage.payload.data(), transportMessage.payload.size());
 	transportMessage.type        = json_val.at("type").as_string();
 	transportMessage.transaction = setTypeTransaction(json_val.at("transaction").as_int64());
 	if(onAllRead) {
@@ -135,6 +145,9 @@ void TransportHandler::read_async()
 			        json::value json_val = json::parse(json, error);
 			        if(errorHandler(error, *transportMessage, "parse_json"))
 				        return;
+			        if(onReadHandler)
+				        onReadHandler(0, transportMessage->payload.data(), transportMessage->payload.size());
+
 			        transportMessage->type        = json_val.at("type").as_string();
 			        transportMessage->transaction = setTypeTransaction(json_val.at("transaction").as_int64());
 			        if(onAllRead) {

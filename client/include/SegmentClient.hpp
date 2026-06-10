@@ -4,43 +4,35 @@
 #pragma once
 
 #include "../../clientserveriface/include/clientserveriface/client.h"
-#include "SyncClientConnectionHandler.hpp"
-#include "Logger.hpp"
-#include "MessageHandler.hpp"
-#include "../../core/lib/TransportHandler/include/TransportHandler/TransportHandler.hpp"
-#include "ClientRequestResponseHandler.hpp"
+#include "Session/Session.hpp"
 
-#include <mutex>
 #include <memory>
-#include <functional>
-#include <atomic>
 
 class SegmentClient : public Network::Client {
 public:
-    SegmentClient(std::string  address, int port, bool debug = false);
-    ~SegmentClient() override;
+	SegmentClient(const std::string& address, int port);
+	~SegmentClient() override;
 
-    void start() override;
-    void stop() override;
+	void start() override;
+	void stop() override;
 
-    void connect();
-    void disconnect() override;
+	void connect();
+	void disconnect() override;
 
-    void write(const void* data, size_t sz) override;
+	void write(const void* data, size_t sz) override;
 
-    bool isRunning() const;
+	void setIOMode(IOMode mode);
+
+	bool getIsWork();
 
 private:
-    std::string address;
-    int port;
-    bool debug;
+	std::string address;
+	int port;
 
-    // Обработчики
-    std::unique_ptr<SyncClientConnectionHandler> connection_handler;
-    std::unique_ptr<TransportHandler> transport_handler;
-    std::unique_ptr<MessageHandler> message_handler;
-    std::unique_ptr<ClientRequestResponseHandler> request_response_handler;
+	IOMode mode = IOMode::Sync;
 
-    Logger& logger = Logger::getInstance();
-    Worker worker_task;
+	std::atomic<bool> isWork{false};
+	std::thread mainThread;
+	std::unique_ptr<Session> session;
+	IOContextHandler ioContext;
 };

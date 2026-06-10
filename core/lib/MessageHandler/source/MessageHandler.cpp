@@ -36,6 +36,7 @@ std::unique_ptr<Message> MessageHandler::parse(const TransportMessage& transport
 	error_code error;
 	jv = boost::json::parse(sv, error);
 	ErrorHandler::check_error(error, "MessageHandler::parse");
+	/// TODO:
 	if(error)
 		return nullptr;
 	auto message = creator_message->createMessage(transport_message.type, transport_message.transaction, jv);

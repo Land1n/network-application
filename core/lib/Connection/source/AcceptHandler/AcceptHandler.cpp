@@ -3,9 +3,15 @@
 //
 #include "AcceptHandler/AcceptHandler.hpp"
 
+#include "Logger.hpp"
+
 AcceptHandler::AcceptHandler(boost::asio::io_context& io, const std::string& address, unsigned int port) : acceptor(io)
 {
 	setOptionAcceptor(address, port);
+}
+AcceptHandler::AcceptHandler(boost::asio::io_context& io, unsigned int port) : acceptor(io)
+{
+	setOptionAcceptor(port);
 }
 AcceptHandler::AcceptHandler(boost::asio::io_context& io, const tcp::endpoint& endpoint) : acceptor(io)
 {
@@ -37,6 +43,15 @@ void AcceptHandler::setOnError(const CallBack& c)
 }
 void AcceptHandler::getIOContext()
 {}
+void AcceptHandler::setOptionAcceptor(int port)
+{
+	acceptor.open(tcp::v4());
+	boost::system::error_code ec;
+	acceptor.set_option(tcp::acceptor::reuse_address(true));
+	acceptor.bind(tcp::endpoint(tcp::v4(), port), ec);
+	ErrorHandler::check_error(ec, "AcceptHandler::setOptionAcceptor");
+	acceptor.listen();
+};
 
 void AcceptHandler::setOptionAcceptor(const std::string& address, int port)
 {
@@ -64,8 +79,11 @@ void AcceptHandler::accept(std::shared_ptr<tcp::socket> socket, IOMode mode)
 }
 void AcceptHandler::sync_accept(std::shared_ptr<tcp::socket>& socket)
 {
-	error_code ec;
-	acceptor.accept(*socket, ec);
+	std::promise<error_code> promise;
+	acceptor.async_accept(*socket, [&promise](error_code ec) {
+		promise.set_value(ec);
+	});
+	error_code ec = promise.get_future().get();
 	if(ErrorHandler::check_error(ec, "AcceptHandler::accept.sync")) {
 		if(onError)
 			onError(ec);

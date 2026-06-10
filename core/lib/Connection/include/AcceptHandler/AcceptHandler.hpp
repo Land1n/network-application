@@ -12,6 +12,7 @@
 class AcceptHandler {
 public:
 	AcceptHandler(boost::asio::io_context& io, const std::string& address, unsigned int port);
+	AcceptHandler(boost::asio::io_context& io, unsigned int port);
 	AcceptHandler(boost::asio::io_context& io, const tcp::endpoint&);
 	~AcceptHandler();
 	void accept(std::shared_ptr<tcp::socket> socket, IOMode);
@@ -22,6 +23,8 @@ public:
 	void setOnError(const CallBack& callback);
 
 	void getIOContext();
+	void setOptionAcceptor(int port);
+
 protected:
 	void sync_accept(std::shared_ptr<tcp::socket>& socket);
 	void async_accept(std::shared_ptr<tcp::socket>& socket);

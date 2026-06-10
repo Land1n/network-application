@@ -1,7 +1,12 @@
 build.sh
 build/
 .idea/
+cmake-build-debug/
+Release/config
+object_big_plat.puml
 .gitignore
+.clang-format
+big_plan.puml
 test.cpp
 test
 .clang-format
