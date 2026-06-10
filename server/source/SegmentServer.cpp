@@ -28,35 +28,36 @@ void SegmentServer::start()
 	mainThread = std::thread([this]() {
 		ErrorHandler::check_error(error_code{}, "SegmentServer::start", true);
 
+		auto task = [this](int ID) {
+			auto session = sessionManager->getSession(ID);
+			if(session != nullptr) {
+				while(isWork) {
+					session->setOnAllRead([ID](error_code ec, std::unique_ptr<Message>&& msg) {
+						if(msg != nullptr) {
+							auto raw = static_cast<RawMessage*>(msg.get());
+							std::string raw_msg(reinterpret_cast<const char*>(raw->getData().data()),
+							                    raw->getData().size());
+							Logger::getInstance().log(LogLevel::Info, "SegmentServer::read",
+							                          "RESPONSE to string [SessionID=" + std::to_string(ID) +
+							                              "] : " + raw_msg);
+						}
+					});
+					session->read();
+				}
+			}
+		};
+
 		while(isWork) {
 			size_t ID = IDDistributionHandler();
 			sessionManager->addSession(ID);
-
-
-
-			std::thread([this, ID]() {
-				if(isWork) {
-					auto session = sessionManager->getSession(ID);
-					if(session != nullptr) {
-						session->setOnAllRead([](error_code ec, std::unique_ptr<Message>&& msg) {
-							if(msg != nullptr) {
-								auto raw = static_cast<RawMessage*>(msg.get());
-								std::string raw_msg(reinterpret_cast<const char*>(raw->getData().data()),
-								                    raw->getData().size());
-								Logger::getInstance().log(LogLevel::Info, "SegmentServer::read",
-								                          "RESPONSE to string : " + raw_msg);
-							}
-						});
-						while(isWork) {
-							session->read();
-						}
-					}
-				}
-
-
-
+			if(!multiConnect && sessionManager->getSessionCount() > 1) {
+				disconnect(ID);
+			}
+			std::thread([ID, task]() {
+				task(ID);
 			}).detach();
 		}
+
 		ErrorHandler::check_error(error_code{}, "SegmentServer::stop", true);
 	});
 }

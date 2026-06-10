@@ -32,6 +32,7 @@ public:
 
 	void setOnConnect(const CallBack&);
 	void setOnAccept(const CallBack&);
+	void setOnDisconnect(const CallBack&);
 
 	void setOnReadHandler(std::function<void(size_t, const void*, size_t)>);
 
@@ -51,6 +52,7 @@ protected:
 
 	CallBack on_connect;
 	CallBack on_accept;
+	CallBack on_disconnect;
 
 	CallBack on_all_write;
 	std::function<void(error_code, std::unique_ptr<Message>&&)> on_all_read;

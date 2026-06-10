@@ -25,21 +25,17 @@ int main()
 
 	ConfigurationHandler handler;
 	try {
-		auto serverConfig = handler.getJson(Configuration::Connection);
-		std::string addr  = serverConfig.at("address").as_string().c_str();
-		auto& portsArr    = serverConfig.at("port").as_array();
+		auto serverConfig = handler.getData(Configuration::Connection, User::Server);
+		auto& portsArr    = serverConfig.at("ports").as_array();
 		auto& multiArr    = serverConfig.at("multiConnect").as_array();
 		Logger::getInstance().log(LogLevel::Info, "ServerConfig",
-		                          "address = " + addr + " port[0] = " + std::to_string(portsArr[0].as_int64()) +
+		                          "port[0] = " + std::to_string(portsArr[0].as_int64()) +
 		                              " multiConnect[0] = " + std::to_string(multiArr[0].as_bool()));
 
 		params.port         = portsArr[0].as_int64();
 		params.multiConnect = multiArr[0].as_bool();
 	}
 	catch(const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		params.port         = 12345;
-		params.multiConnect = false;
 		Logger::getInstance().log(LogLevel::Warn, "ServerConfig ", "default");
 	}
 
@@ -60,20 +56,34 @@ int main()
 	server->start();
 
 	std::string msg;
-	int id;
 
 	while(running && server) {
-		Logger::getInstance().log(LogLevel::Info, "Server::write", "Write ID : ");
-		std::cin >> id;
-		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		Logger::getInstance().log(LogLevel::Info, "Server::write", "Write Message : ");
+		Logger::getInstance().log(LogLevel::Info, "Server::write", "Write ID;Message  : ");
 		std::getline(std::cin, msg);
-		if(msg == "stop") {
-			break;
-		}
+		int id = 0;
+		std::string message;
 
-		server->write(id, msg.data(), msg.size());
-		msg.clear();
+		size_t pos = msg.find(';');
+		if(pos != std::string::npos) {
+			std::string id_part = msg.substr(0, pos);
+			message             = msg.substr(pos + 1);
+
+			try {
+				id = std::stoi(id_part);
+				if(message == "stop") {
+					break;
+				}
+
+				server->write(id, message.data(), message.size());
+				msg.clear();
+			}
+			catch(const std::exception& e) {
+				Logger::getInstance().log(LogLevel::Error, "Server::write", "Invalid ID: " + id_part);
+			}
+		}
+		else {
+			Logger::getInstance().log(LogLevel::Error, "Server::write", "Missing ';' delimiter");
+		}
 	}
 	server->stop();
 	return 0;

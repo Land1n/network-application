@@ -78,7 +78,7 @@ void SegmentClient::connect()
 		});
 	session->setOnConnect([this](error_code ec) {
 		if(ec)
-			stop();
+			stop(); // todo:
 	});
 	session->connect(address, port);
 }

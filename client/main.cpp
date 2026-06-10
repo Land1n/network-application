@@ -27,16 +27,18 @@ int main()
 	SegmentClientCreator creator;
 	ConfigurationHandler handler;
 	try {
-		auto clientConfig = handler.getJson(Configuration::Connection);
-		std::string addr  = clientConfig.at("address").as_string().c_str();
-		auto& portsArr    = clientConfig.at("port").as_array();
+		auto clientConfig = handler.getData(Configuration::Connection, User::Client);
+		std::cout << "Client Config : " << clientConfig << std::endl;
+		std::string addr = clientConfig.at("address").as_string().c_str();
+		auto& portsArr   = clientConfig.at("ports").as_array();
 		Logger::getInstance().log(LogLevel::Info, "ClientConfig",
 		                          "address = " + addr + " port[0] = " + std::to_string(portsArr[0].as_int64()));
 		params.hostname = addr;
 		params.port     = portsArr[0].as_int64();
 	}
 	catch(const std::exception& e) {
-		Logger::getInstance().log(LogLevel::Error, "ClientConfig ", "Not connection");
+		ErrorHandler::check_error(e, "ClientConfig");
+		return -1;
 	}
 
 	auto net_client = creator.create(params);
@@ -51,7 +53,6 @@ int main()
 
 	std::string msg = "";
 	while(running && client->getIsWork()) {
-		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		Logger::getInstance().log(LogLevel::Info, "Client::write", " : ");
 		std::getline(std::cin, msg);
 		if(msg == "stop") {

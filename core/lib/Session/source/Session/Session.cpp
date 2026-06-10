@@ -55,6 +55,8 @@ void Session::disconnect()
 {
 	connection_handler->setOnDisconnect([this](error_code ec) {
 		ErrorHandler::check_error(ec, std::string("Session::disconnect"), true);
+		if(on_disconnect)
+			on_disconnect(ec);
 	});
 	connection_handler->disconnect();
 }
@@ -66,6 +68,10 @@ void Session::setOnConnect(const CallBack& callback)
 void Session::setOnAccept(const CallBack& callback)
 {
 	on_accept = callback;
+}
+void Session::setOnDisconnect(const CallBack& callback)
+{
+	on_disconnect = callback;
 }
 void Session::setOnReadHandler(std::function<void(size_t, const void*, size_t)> handler)
 {
