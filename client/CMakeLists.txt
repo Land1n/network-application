@@ -1,28 +1,28 @@
 cmake_minimum_required(VERSION 3.21)
-project(SegmentClient)
+project(segment_client)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost REQUIRED COMPONENTS system)
 
-file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
+file(GLOB_RECURSE SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/*.h)
 
-add_library(SegmentClientCore SHARED ${SOURCES})
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
-target_include_directories(SegmentClientCore PUBLIC include)
+target_include_directories(segment_client PUBLIC include)
 
-target_link_libraries(SegmentClientCore PUBLIC
+target_link_libraries(segment_client PUBLIC
         Boost::system
         clientserveriface
-        Session
-        ConfigurationHandler
+        message
+        session
+        configuration_handler
+        worker
+        request_response_handler
+        logger
+        utils
 )
 
-#add_subdirectory(lib/ClientRequestResponseHandler)
-
-add_executable(seg_client_app main.cpp)
-
-target_link_libraries(seg_client_app PRIVATE
-        SegmentClientCore
-)
+add_executable(client main.cpp)
+target_link_libraries(client PRIVATE segment_client)

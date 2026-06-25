@@ -1,97 +1,56 @@
-cmake_minimum_required(VERSION 3.14)
-project(server_client_app LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.21)
+project(network-application)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# add_compile_options(-fsanitize=address -g -static-libasan)
-# add_link_options(-fsanitize=address -static-libasan)
 
-set(Boost_USE_STATIC_RUNTIME OFF)
 
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_SKIP_BUILD_RPATH FALSE)                # Не пропускать RPATH при сборке
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)         # Использовать установочный RPATH уже на этапе сборки
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")        # Путь к библиотекам относительно исполняемого файла
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)      # Добавлять пути зависимостей в RPATH
+set(UNITTEST ON)
 
-find_package(GTest REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system thread json chrono)
 
-set(PARENT_PROJECT ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-add_subdirectory(core/lib/IOContextHandler)
-add_subdirectory(core/lib/ErrorHandler)
-add_subdirectory(core/lib/Utils)
-add_subdirectory(core/lib/Connection)
-add_subdirectory(core/lib/Session)
-add_subdirectory(core/lib/TransportHandler)
-add_subdirectory(core/lib/Logger)
-add_subdirectory(core/lib/MessageHandler)
-# add_subdirectory(core/lib/RequestResponseHandler)
-add_subdirectory(core/lib/ConfigurationHandler)
-add_subdirectory(server)
-add_subdirectory(client)
+
+add_subdirectory(core/connection)
+add_subdirectory(core/io_context_handler)
+add_subdirectory(core/logger)
+add_subdirectory(core/utils)
+add_subdirectory(core/worker)
+add_subdirectory(core/session)
+add_subdirectory(core/message)
+add_subdirectory(core/message_handler)
+add_subdirectory(core/transport_handler)
+add_subdirectory(core/configuration_handler)
+add_subdirectory(core/request_response_handler)
+
 add_subdirectory(clientserveriface)
-add_subdirectory(core/lib/Worker)
+add_subdirectory(client)
+add_subdirectory(server)
 
 
-file(GLOB_RECURSE TEST_SOURCES
-        "core/lib/*/tests/*.cpp"
-        "server/lib/*/tests/*.cpp"
-        "server/tests/*.cpp"
-        "client/tests/*.cpp"
-)
-list(FILTER TEST_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+install(TARGETS
+        connection
+        io_context_handler
+        logger
+        utils
+        worker
+        session
+        message
+        message_handler
+        transport_handler
+        configuration_handler
+        clientserveriface
+        request_response_handler
+        segment_client
+        segment_server
+        client
+        server
 
-add_executable(all_tests ${TEST_SOURCES})
-
-file(GLOB_RECURSE INCLUDE_DIRS
-        "core/lib/*/include"
-        "server/lib/*/include"
-        "server/include"
-        "client/include"
-)
-target_include_directories(all_tests PRIVATE ${INCLUDE_DIRS})
-
-target_link_libraries(all_tests PRIVATE
-        GTest::gtest
-        GTest::gtest_main
-        Boost::system
-        Boost::thread
-        Boost::json
-        Boost::chrono
-        IOContextHandler
-        Utils
-        Worker
-        Logger
-        Connection
-        TransportHandler
-        MessageHandler
-        Session
-)
-
-enable_testing()
-add_test(NAME AllTests COMMAND all_tests)
-
-set(LIB_TARGETS
-        IOContextHandler
-        ErrorHandler
-        Utils
-        Connection
-        Session
-        TransportHandler
-        Logger
-        MessageHandler
-        Worker
-        ConfigurationHandler
-        SegmentServerCore
-        SegmentClientCore
-)
-install(TARGETS ${LIB_TARGETS}
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-)
-
-install(TARGETS seg_server_app seg_client_app
         RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
 )
-install(DIRECTORY DESTINATION config)

@@ -2,12 +2,10 @@ build.sh
 build/
 .idea/
 cmake-build-debug/
-Release/config
+Release/
+cborka.sh
 object_big_plat.puml
 .gitignore
 .clang-format
 big_plan.puml
-test.cpp
-test
-.clang-format
-clientserveriface/
+TODO.txt

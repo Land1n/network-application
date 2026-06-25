@@ -1,33 +1,31 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SegmentServer)
+project(segment_server)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost REQUIRED COMPONENTS system json)
 
-file(GLOB SOURCES "include/*.hpp" "source/*.cpp")
-add_library(SegmentServerCore SHARED ${SOURCES})
+file(GLOB_RECURSE SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/${PROJECT_NAME}/*.h)
 
-target_include_directories(SegmentServerCore PUBLIC include)
+add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
-target_link_libraries(SegmentServerCore PUBLIC
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC
         Boost::system
-        Boost::json
         clientserveriface
-        #        ServerRequestResponseHandler
-        ConfigurationHandler
-        Session
-        IOContextHandler
-
+        message
+        session
+        configuration_handler
+        worker
+        request_response_handler
+        logger
+        utils
 )
 
-#add_subdirectory(lib/ServerRequestResponseHandler)
+add_executable(server main.cpp)
+target_link_libraries(server PRIVATE segment_server)
 
-add_executable(seg_server_app main.cpp)
-
-target_link_libraries(seg_server_app PRIVATE
-        SegmentServerCore
-)
-#add_subdirectory(tests)
+include("unittest.cmake")
