@@ -25,7 +25,6 @@ void SegmentClient::start()
 	session->setOnAllRead([](error_code ec, std::unique_ptr<Message>&& msg) {
 		if(msg != nullptr) {
 			auto raw = dynamic_cast<RawMessage*>(msg.get());
-			/// + TODO: huina
 			if(raw != nullptr) {
 				std::string raw_msg(reinterpret_cast<const char*>(raw->getData().data()), raw->getData().size());
 				Logger::getInstance().log(LogLevel::Info, "SegmentClient::read", "RESPONSE to string : " + raw_msg);
@@ -33,7 +32,7 @@ void SegmentClient::start()
 		}
 	});
 	mainWorker.addTask([this]() {
-		while(isWork.load()) {
+		while(isWork.load() && !session->hasError()) {
 			session->read();
 		}
 	});
@@ -44,7 +43,7 @@ void SegmentClient::disconnect()
 }
 void SegmentClient::write(const void* data, size_t sz)
 {
-	std::string type(reinterpret_cast<const char*>(data), sz);
+	std::string type(static_cast<const char*>(data), sz);
 	if(type == "signal" || type == "information") {
 		session->write(std::make_unique<Message>(type, Transaction::Request));
 	}
@@ -71,8 +70,9 @@ bool SegmentClient::getIsWork()
 
 void SegmentClient::stop()
 {
+	if(!isWork)
+		return;
 	isWork = false;
-
 	disconnect();
 	mainWorker.flush();
 	ErrorHandler::check_error(error_code{}, "SegmentClient::stop", true);

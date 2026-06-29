@@ -16,11 +16,19 @@ void signal_handler(int)
 }
 
 std::map<uint32_t, std::shared_ptr<Network::Server>> servers;
-
-int main()
+int main(int argc, char* argv[])
 {
+	Logger::getInstance().setLevel(LogLevel::Info);
+
 	std::signal(SIGINT, signal_handler);
 	std::signal(SIGTERM, signal_handler);
+
+	if(argc < 2) {
+		Logger::getInstance().log(LogLevel::Critical, "ServerConfig", "Code = [ Path not specified ]");
+		return 1;
+	}
+	std::string filePath = argv[1];
+	Logger::getInstance().log(LogLevel::Info, "ServerConfig", "Config path = " + filePath);
 
 	Network::ServerCreatorParams params;
 
@@ -44,15 +52,39 @@ int main()
 			server.second->stop();
 		}
 	};
+
 	auto allStart = []() {
 		for(auto server: servers) {
 			server.second->start();
 		}
 	};
 
-	ConfigurationHandler handler;
+	auto viewListSession = []() {
+		std::string result = "\n";
+		for(auto server: servers) {
+			auto segment_server     = dynamic_cast<SegmentServer*>(server.second.get());
+			std::string mini_result = std::to_string(server.first) + " = [ ";
+			for(size_t i: segment_server->getSessionVectorID()) {
+				mini_result += std::to_string(i) + " ";
+			}
+			mini_result += "]";
+			result += "\t" + mini_result;
+			result += "\n";
+		}
+		Logger::getInstance().log(LogLevel::Info, "ServerConfig", "ServerInfo = { " + result + " }");
+	};
 
-	Logger::getInstance().setLevel(LogLevel::Debug);
+	auto broadcastWrite = [](std::string&& message) {
+		for(auto server: servers) {
+			auto segment_server = dynamic_cast<SegmentServer*>(server.second.get());
+			for(size_t i: segment_server->getSessionVectorID()) {
+				segment_server->write(i, message.data(), message.size());
+			}
+		}
+	};
+
+	ConfigurationHandler handler;
+	handler.setPath(Configuration::Connection, User::Server, filePath);
 
 	try {
 		auto serverConfig = handler.getData(Configuration::Connection, User::Server);
@@ -93,12 +125,29 @@ int main()
 
 	while(running && alIslWork()) {
 		while(running && alIslWork()) {
-			Logger::getInstance().log(LogLevel::Info, "Server::write", "Write SERVER_PORT;ID_SESSION;MESSAGE : ");
+			Logger::getInstance().log(LogLevel::Info, "Server::write", "Write Command");
 			std::string line;
 			std::getline(std::cin, line);
 
+			if(line == "help") {
+				Logger::getInstance().log(
+				    LogLevel::Info, "Server::help",
+				    "Command : \n\thelp - View list commands\n\tstop - Stopping server/client\n\tlist - View list session\n\tbroadcast - Write all session\n\tsignal/information - Write message with this type\n\t<SERVER_PORT>;<ID_SESSION>;<MESSAGE> - <MESSAGE>help Write  session on <SERVER_PORT> and with <ID_SESSION>");
+				continue;
+			}
 			if(line == "stop") {
 				break;
+			}
+			if(line == "list") {
+				viewListSession();
+				continue;
+			}
+			if(line == "broadcast") {
+				Logger::getInstance().log(LogLevel::Info, "Server::write{broadcast}", "MESSAGE : ");
+				std::string sup_line;
+				std::getline(std::cin, sup_line);
+				broadcastWrite(std::move(sup_line));
+				continue;
 			}
 
 			size_t pos1 = line.find(';');

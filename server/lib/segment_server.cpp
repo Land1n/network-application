@@ -7,12 +7,16 @@
 
 #include <iostream>
 
+namespace {
+
 std::atomic<int> ID{0};
 
 auto handlerID = []() {
 	ID.fetch_add(1);
 	return ID.load();
 };
+
+} // namespace
 
 SegmentServer::SegmentServer(const std::string& address, PortInt port, bool multiConnect) :
     multiConnect(multiConnect), address(address), port(port)
@@ -78,7 +82,7 @@ void SegmentServer::write(Network::ConnectionId id, const void* data, size_t sz)
 {
 	auto session = sessionManager->getSession(id);
 
-	std::string type(reinterpret_cast<const char*>(data), sz);
+	std::string type(static_cast<const char*>(data), sz);
 	if(type == "signal" || type == "information") {
 		if(session != nullptr)
 			session->write(std::make_unique<Message>(type, Transaction::Request));
@@ -112,6 +116,15 @@ bool SegmentServer::getIsWork()
 {
 	return isWork.load();
 }
+std::vector<size_t> SegmentServer::getSessionVectorID()
+{
+	std::vector<size_t> result;
+	for(auto& [id, session]: sessionManager->getSessionMap()) {
+		result.emplace_back(id);
+	}
+	return result;
+}
+
 void SegmentServer::sessionWork(size_t sessionId)
 {
 	auto session = sessionManager->getSession(sessionId);

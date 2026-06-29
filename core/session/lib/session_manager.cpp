@@ -107,12 +107,12 @@ void SessionManager::closeAcceptor()
 		acceptHandler->close();
 }
 
-void SessionManager::setOnAccept(std::function<void(error_code)> handler)
+void SessionManager::setOnAccept(const CallbackError& handler)
 {
 	acceptHandler->setOnAccept(handler);
 }
 
-void SessionManager::setSessionOnReadHandler(const std::function<void(std::size_t, const void*, size_t)>& function)
+void SessionManager::setSessionOnReadHandler(const Network::Server::ReadHandler& function)
 {
 	readHandlerForSession = function;
 }
@@ -120,6 +120,11 @@ void SessionManager::setSessionOnReadHandler(const std::function<void(std::size_
 void SessionManager::setMagicNumber(uint32_t n)
 {
 	magicNumber = n;
+}
+SessionManager::SessionMap SessionManager::getSessionMap()
+{
+	std::unique_lock<std::mutex> lk(sessionMapMutex);
+	return sessionMap;
 }
 
 size_t SessionManager::getSessionCount()

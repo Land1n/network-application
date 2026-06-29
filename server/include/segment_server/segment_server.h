@@ -27,6 +27,8 @@ public:
 
 	bool getIsWork();
 
+	std::vector<size_t> getSessionVectorID();
+
 private:
 	void sessionWork(size_t sessionId);
 

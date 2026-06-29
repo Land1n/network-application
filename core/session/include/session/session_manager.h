@@ -5,29 +5,36 @@
 #include "connection/accept_handler.h"
 #include "session/session.h"
 #include "io_context_handler/io_context_handler.h"
+#include "utils/alias.h"
+#include "clientserveriface/server.h"
 
 #include <map>
 #include <memory>
 
 class SessionManager {
 public:
+	using SessionIDInt = uint32_t;
+	using SessionMap   = std::map<SessionIDInt, std::shared_ptr<Session>>;
+
 	SessionManager(boost::asio::io_context& io_context, IOMode mode, const tcp::endpoint& endpoint);
-	SessionManager(boost::asio::io_context& io_context, IOMode mode, const std::string& address, unsigned int port);
-	SessionManager(boost::asio::io_context& io_context, IOMode mode, unsigned int port);
+	SessionManager(boost::asio::io_context& io_context, IOMode mode, const std::string& address, PortInt port);
+	SessionManager(boost::asio::io_context& io_context, IOMode mode, PortInt port);
 	~SessionManager();
 
-	void addSession(unsigned int sessionID);
+	void addSession(SessionIDInt sessionID);
 
 	size_t getSessionCount();
 
-	std::shared_ptr<Session> getSession(unsigned int sessionID);
+	std::shared_ptr<Session> getSession(SessionIDInt sessionID);
 
 	void closeAcceptor();
 
-	void setOnAccept(std::function<void(error_code)> onAccept);
-	void setSessionOnReadHandler(const std::function<void(std::size_t, const void*, size_t)>& function);
+	void setOnAccept(const CallbackError& onAccept);
+	void setSessionOnReadHandler(const Network::Server::ReadHandler& function);
 
-	void setMagicNumber(uint32_t magicNumber);
+	void setMagicNumber(MagicInt magicNumber);
+
+	SessionMap getSessionMap();
 
 protected:
 	void removeSession(unsigned int sessionID);
@@ -37,11 +44,11 @@ protected:
 	boost::asio::io_context& io_context;
 
 	std::mutex sessionMapMutex;
-	std::map<size_t, std::shared_ptr<Session>> sessionMap;
+	SessionMap sessionMap;
 
-	std::function<void(std::size_t, const void*, size_t)> readHandlerForSession;
+	Network::Server::ReadHandler readHandlerForSession;
 
-	uint32_t magicNumber;
+	MagicInt magicNumber;
 
 	std::unique_ptr<AcceptHandler> acceptHandler;
 };

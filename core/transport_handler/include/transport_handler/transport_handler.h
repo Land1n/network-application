@@ -46,7 +46,6 @@ protected:
 	uint32_t magicNumber;
 	std::shared_ptr<tcp::socket> socket;
 
-	/// + TODO: надо использовать alias
 	Network::Server::ReadHandler onReadHandler;
 	WriteHandler onWriteHandler;
 

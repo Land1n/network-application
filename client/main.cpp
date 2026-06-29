@@ -1,16 +1,15 @@
 //
 // Created by ivan on 14.03.2026.
 //
+
 #include "segment_client/segment_client_creator.h"
 #include "configuration_handler/configuration_handler.h"
 #include "clientserveriface/client.h"
+#include "utils/alias.h"
+
 #include <iostream>
 #include <csignal>
 #include <atomic>
-#include <thread>
-#include <cstring>
-
-#include "utils/alias.h"
 
 std::atomic<bool> running{true};
 
@@ -19,16 +18,24 @@ void signal_handler(int)
 	running = false;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+	Logger::getInstance().setLevel(LogLevel::Info);
 	std::signal(SIGINT, signal_handler);
 	std::signal(SIGTERM, signal_handler);
+
+	if(argc < 2) {
+		Logger::getInstance().log(LogLevel::Critical, "ClientConfig", "Code = [ Path not specified ]");
+		return 1;
+	}
+	std::string filePath = argv[1];
+	Logger::getInstance().log(LogLevel::Info, "ClientConfig", "Config path = " + filePath);
 
 	Network::ClientCreatorParams params;
 
 	SegmentClientCreator creator;
 	ConfigurationHandler handler;
-
+	handler.setPath(Configuration::Connection, User::Client, filePath);
 	MagicInt magicNumber;
 	try {
 		auto clientConfig   = handler.getData(Configuration::Connection, User::Client);
@@ -47,7 +54,6 @@ int main()
 		ErrorHandler::check_error(e, "ClientConfig");
 		return -1;
 	}
-	Logger::getInstance().setLevel(LogLevel::Debug);
 	auto net_client = creator.create(params);
 	auto* client    = reinterpret_cast<SegmentClient*>(net_client.get());
 

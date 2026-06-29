@@ -28,7 +28,9 @@ add_subdirectory(core/transport_handler)
 add_subdirectory(core/configuration_handler)
 add_subdirectory(core/request_response_handler)
 
+add_subdirectory(core/handler_invoker)
 add_subdirectory(clientserveriface)
+
 add_subdirectory(client)
 add_subdirectory(server)
 
@@ -36,6 +38,7 @@ add_subdirectory(server)
 install(TARGETS
         connection
         io_context_handler
+        handler_invoker
         logger
         utils
         worker

@@ -4,8 +4,6 @@
 #include "connection/accept_handler.h"
 
 #include "logger/logger.h"
-/// + TODO: типы (uint - int)
-/// + TODO: использовать uint32_t вместо unsigned int - для всех целочисленных типов
 AcceptHandler::AcceptHandler(boost::asio::io_context& io, const std::string& address, PortInt port) : acceptor(io)
 {
 	setOptionAcceptor(address, port);

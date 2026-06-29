@@ -52,21 +52,23 @@ json::value ConfigurationHandler::createDefaultObject(User user) const
 
 std::string ConfigurationHandler::getFilePath(Configuration config, User user) const
 {
-	switch(config) {
-	case Configuration::Connection:
-		switch(user) {
-		case User::Server:
-			return "../config/server_connection.json";
-		case User::Client:
-			return "../config/client_connection.json";
-		default:
-			throw std::invalid_argument("Unknown user");
-		}
-	default:
-		throw std::invalid_argument("Unknown configuration type");
+	try {
+		return configMap.at({user, config});
+	}
+	catch(const std::exception& e) {
+		throw std::invalid_argument("Unknown type");
 	}
 }
 
+ConfigurationHandler::ConfigurationHandler()
+{
+	configMap[{User::Server, Configuration::Connection}] = "../config/server_connection.json";
+	configMap[{User::Client, Configuration::Connection}] = "../config/client_connection.json";
+}
+void ConfigurationHandler::setPath(Configuration config, User user, std::string path)
+{
+	configMap[{user, config}] = path;
+}
 json::object ConfigurationHandler::getData(Configuration config, User user)
 {
 	std::string filePath = getFilePath(config, user);
@@ -108,4 +110,3 @@ json::object ConfigurationHandler::getData(Configuration config, User user)
 	return obj;
 }
 
-///		+ TODO: тесты : несколько конфигов разных, парсим, сравниваем с эталоном
