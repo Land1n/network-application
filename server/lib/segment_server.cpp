@@ -71,6 +71,14 @@ void SegmentServer::stop()
 		return;
 	isWork.store(false);
 	sessionManager->closeAcceptor();
+
+	auto copy_map = sessionManager->getSessionMap();
+	if(sessionManager->getSessionCount()) {
+		for(auto [id, session]: copy_map) {
+			session->disconnect();
+		}
+	}
+
 	mainWorker.flush();
 	for(auto& worker: sessionWorkers) {
 		worker->flush();

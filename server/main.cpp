@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
 			if(line == "help") {
 				Logger::getInstance().log(
 				    LogLevel::Info, "Server::help",
-				    "Command : \n\thelp - View list commands\n\tstop - Stopping server/client\n\tlist - View list session\n\tbroadcast - Write all session\n\tsignal/information - Write message with this type\n\t<SERVER_PORT>;<ID_SESSION>;<MESSAGE> - <MESSAGE>help Write  session on <SERVER_PORT> and with <ID_SESSION>");
+				    "Command : \n\thelp - View list commands\n\tstop - Stopping server/client\n\tlist - View list session\n\tbroadcast - Write all session\n\tsignal/information - Write message with this type\n\t<SERVER_PORT>;<ID_SESSION>;<MESSAGE> - <MESSAGE>help Write  session on <SERVER_PORT> and with <ID_SESSION>\n\t<SERVER_PORT>;<ID_SESSION>;disconnect - Disconnect session");
 				continue;
 			}
 			if(line == "stop") {
@@ -177,6 +177,10 @@ int main(int argc, char* argv[])
 				continue;
 			}
 			if(servers.find(id_server) != servers.end()) {
+				if(message == "disconnect") {
+					servers[id_server]->disconnect(id_session);
+					continue;
+				}
 				servers[id_server]->write(id_session, message.data(), message.size());
 			}
 			else {
