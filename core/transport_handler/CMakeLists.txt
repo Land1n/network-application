@@ -21,6 +21,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
         connection
         io_context_handler
         message_handler
+        handler_invoker
         logger
         clientserveriface
 )

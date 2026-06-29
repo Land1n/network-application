@@ -1,0 +1,7 @@
+build.sh
+build/
+.idea/
+cmake-build-debug/
+Release/
+cborka.sh
+TODO.txt

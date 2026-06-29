@@ -3,23 +3,22 @@
 //
 #pragma once
 
-#include "../../../../clientserveriface/include/clientserveriface/connectionid.h"
+#include "clientserveriface/server.h"
+#include "io_context_handler/io_context_handler.h"
+#include "message/transport_message.h"
+#include "utils/alias.h"
+
+#include "handler_invoker/handler_invoker.h"
 
 #include <boost/asio.hpp>
 #include <boost/json.hpp>
-#include <memory>
 #include <functional>
-#include <cstdint>
-#include "utils/alias.h"
-#include "message/transport_message.h"
-#include "io_context_handler/io_context_handler.h"
-
-#include "clientserveriface/server.h"
-
-#include "utils/alias.h"
+#include <memory>
 
 class TransportHandler {
 public:
+	enum class Command { errorHandler };
+	using Handler                = std::function<bool(error_code, TransportMessage&, const std::string&, IOMode)>;
 	using ErrorAndMessageHandler = std::function<void(error_code, TransportMessage&&)>;
 	using WriteHandler           = std::function<void(const void*, size_t)>;
 
@@ -53,4 +52,6 @@ protected:
 	ErrorAndMessageHandler onAllRead;
 
 	CallbackError onError;
+
+	HandlerInvoker<Command, Handler, bool> invoker;
 };

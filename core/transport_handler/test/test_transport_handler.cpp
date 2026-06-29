@@ -150,7 +150,9 @@ TEST_F(TransportHandlerTests, AsyncWriteAndReadSuccessful)
 	std::promise<void> accept_done, connect_done, write_done, read_done;
 
 	TransportHandler transport_handler_client(client_socket);
+	transport_handler_client.setMagicNumber(10000);
 	TransportHandler transport_handler_server(server_socket);
+	transport_handler_server.setMagicNumber(10000);
 
 	transport_handler_client.setOnAllWrite([&](error_code ec, TransportMessage&& tm) {
 		EXPECT_FALSE(ec);
